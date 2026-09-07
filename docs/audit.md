@@ -80,3 +80,30 @@ The sandbox maps unrelated users to nobody and hides host groups. Privileged
 read-only audit is required to verify doas, protected PAM/polkit/SSH policy,
 groups, capabilities, Btrfs subvolumes and scheduled jobs. doas -n requires
 local authentication; any remaining blind spots must be reported honestly.
+
+## Final capture decisions
+
+GitHub confirmed all three pins above. There are 130 explicit packages: 122
+native, seven available through AUR RPC, and mullvad-vpn-cli whose original AUR
+recipe was recovered from surviving Git history. The recipe at
+`1f542474a3e05301c3025a46f54ac8c1234c8ed0` matches the installed version and install
+script and is the sole local package recipe retained here. The full native
+dependency closure was also resolved against an empty local Pacman database;
+no installed native package was left out of that simulated restoration.
+
+68 files are managed through the explicit allowlist, including staged desktop
+build artifacts. btop's version/default additions and swaylock/autostart changes
+are preserved as a small dotfiles patch. Wireless-regdom's added comment lines
+and unchanged pacman-contrib defaults need no override. Existing OBS recording
+intent is retained as a small seed profile plus the two original encoder files;
+scenes, cookies, streaming-service data and GUI state are excluded. The installed
+dwl manpage is older than the source and is informational drift only.
+
+Real host observations confirmed groups audio/input/kvm/network/seat/storage/video/
+wheel; the recorded capabilities; dash as /bin/sh; bren's subordinate ID ranges;
+New York timezone; current EFI parameters; and the active audio/desktop processes.
+No user-installed fonts or additional active language toolchains were discovered.
+
+The concrete restore procedure, tested behavior and remaining authenticated audit
+requirements are documented in install.md and validation.md. In particular,
+protected doas/SSH/polkit/cron details have not been assumed to be empty or verified.
