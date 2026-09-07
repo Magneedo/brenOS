@@ -1,9 +1,9 @@
 # Package restoration
 
 `packages-portable.txt` + `packages-framework.txt` exactly cover the 122 native
-explicit packages. `packages-aur.txt` covers seven AUR packages.
-`packages-local.txt` covers `mullvad-vpn-cli`. Together these equal the 130-name
-audit snapshot, enforced by `scripts/check`.
+explicit packages. `packages-aur.txt` covers seven AUR packages. Together these
+equal the 129-name restoration inventory, enforced by `scripts/check`.
+No local package recipes are required.
 
 `packages-runtime.txt` promotes installed dependencies that are directly required
 by the environment: dbus/runit integration, elogind/rtkit/polkit, compositor
@@ -61,54 +61,6 @@ If a package moves to a native repository, Pacman/yay can obtain it there. If a
 package disappears, stop, inspect the recorded source/recipe and update the
 manifest deliberately. Do not ignore a missing browser, launcher, VPN or desktop
 dependency to make an install command succeed.
-
-## Recovered Mullvad CLI package
-
-The installed `mullvad-vpn-cli 2025.14-1` comes from the source-build AUR recipe.
-It is absent from AUR's RPC listing on the audit date, while its Git history still
-exists. The exact recipe at `1f542474a3e05301c3025a46f54ac8c1234c8ed0` is retained
-under `packages/mullvad-vpn-cli`, with its install script, `.SRCINFO` and license.
-Its install script matches the installed package database. This is the only
-vendored package recipe; it avoids depending on a removed AUR listing.
-
-Review it, then copy just the recipe inputs to an ignored build directory:
-
-```sh
-cd ~/Projects/artix-bootstrap
-less packages/mullvad-vpn-cli/PKGBUILD
-less packages/mullvad-vpn-cli/mullvad-vpn.install
-mkdir -p .work/local-packages/mullvad-vpn-cli
-cp packages/mullvad-vpn-cli/PKGBUILD packages/mullvad-vpn-cli/mullvad-vpn.install \
-   packages/mullvad-vpn-cli/LICENSE .work/local-packages/mullvad-vpn-cli/
-bootstrap_repo=$PWD
-printf 'source /etc/makepkg.conf\nPACMAN_AUTH=(doas)\n' > .work/makepkg.conf
-cd .work/local-packages/mullvad-vpn-cli
-makepkg --config "$bootstrap_repo/.work/makepkg.conf" -si --needed
-cd "$bootstrap_repo"
-pacman -Q mullvad-vpn-cli
-```
-
-This builds Rust/Go source and needs cargo (usually provided by rust), git, go,
-protobuf, working Internet and disk space. Upstream Cargo.lock is used with locked
-fetch/frozen release build; submodule commits come from the release tree. It also
-fetches the current relay list while building. This is functional reproducibility,
-not identical package bytes. The full source build was not repeated on the
-reference; its absent toolchains were left absent.
-
-If signed-tag verification reports a missing key, use the full signing fingerprint
-reported by GnuPG, confirm it is one of `validpgpkeys` in the reviewed recipe and
-verify it against Mullvad's upstream signing information. Fetch that public key
-into your normal build user's keyring, for example with
-`gpg --keyserver hkps://keys.openpgp.org --recv-keys FULL_FINGERPRINT`, then rerun
-makepkg. Do not use `--skippgpcheck`. Build/signature/upstream failures remain
-visible rather than being hidden by automatic package substitution.
-
-The package supplies `/usr/bin/mullvad`, `mullvad-daemon`, setuid `mullvad-exclude`,
-and resources including the public upstream trust certificate and Maybenot data.
-Those resources are fetched by the package recipe, never stored in this repository.
-The upstream package includes inert systemd units; the bootstrap uses the captured
-runit service instead. Its original removal hook can remove the registered VPN
-device and reset firewall state, so review it before uninstalling the package.
 
 ## Maintenance and recovery
 

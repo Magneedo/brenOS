@@ -58,7 +58,6 @@ m4
 make
 mesa-utils
 mpv
-mullvad-vpn-cli
 noto-fonts
 noto-fonts-cjk
 noto-fonts-emoji

@@ -19,7 +19,7 @@ system ownership, run services or touch firmware. The second apply should report
 zero changes. Tests cover no-write previews, conflict preflight, backed-up
 replacement, symlink escape refusal, boot-input validation and default previews.
 
-`scripts/check` ensures all 130 explicit packages have a manifest, every local
+`scripts/check` ensures all 129 intended explicit packages have a manifest, every local
 file source is tracked, destinations are unique, source inputs exist, scripts
 parse and obvious secret/binary artifacts are absent. Stage intended files before
 running it, since it inspects Git's file list. It is a useful check, not a complete
@@ -90,8 +90,8 @@ current source manpage is an informational documentation difference.
 2. Exercise launcher/terminal/lf, browser, screenshots and clipboard, brightness,
    volume/mute, bar status and wallpaper. Check screen lock and both password
    and fingerprint unlock before relying on power actions.
-3. Use home/hotspot/school Wi-Fi as applicable, Ethernet and VPN connect/disconnect.
-   Verify DNS, routing and intended LAN restrictions. Pair/test Bluetooth devices.
+3. Use home/hotspot/school Wi-Fi as applicable and Ethernet.
+   Verify DNS and routing. Pair/test Bluetooth devices.
 4. Check speakers/headphones/microphone, video acceleration, screen sharing and a
    short OBS recording. Reauthorize portal source selection after reinstalling.
 5. Restore a cleanly shut-down Windows VM backup and private RDP configuration;

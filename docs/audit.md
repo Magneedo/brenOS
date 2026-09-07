@@ -4,6 +4,12 @@ The reference is Artix Linux, runit, Framework Laptop 13 with Intel i5-1240P.
 This audit precedes implementation. No packages, services, home configuration,
 boot entries or filesystem layout were changed to capture it.
 
+Scope revision, 2026-09-07: the user removed Mullvad VPN from the intended
+restore. Its package, service, local recipe and configuration are no longer
+managed. The inventories now describe the selected restore scope; the original
+audit remains in Git history. Existing extras on a host are reported for review,
+not automatically uninstalled or disabled by the bootstrap.
+
 ## Existing sources of truth
 
 | Repository | Published/local HEAD | Coverage |
@@ -21,9 +27,9 @@ Do not reset, stage, commit or push the user's existing worktrees.
 
 ## Working system and gaps
 
-- Eleven enabled services: agetty-tty1, agetty-tty2, bluetoothd, chrony, dbus,
-  dhcpcd, mullvad, seatd, sshd, udevd, wpa_supplicant. Definitions are in
-  /etc/runit/sv; current points to default. Bluetooth, Mullvad and SSH have
+- Ten retained services: agetty-tty1, agetty-tty2, bluetoothd, chrony, dbus,
+  dhcpcd, seatd, sshd, udevd, wpa_supplicant. Definitions are in
+  /etc/runit/sv; current points to default. Bluetooth and SSH have
   locally supplied service scripts, rather than installed *-runit packages.
 - tty1 autologin as bren → Bash → dwl-session → dbus-run-session → dwl
   → dwl-autostart. The session starts foot server, dwlb/statusd, wallpaper,
@@ -53,8 +59,8 @@ Do not reset, stage, commit or push the user's existing worktrees.
   Bluetooth DeviceID, PAM/limits differences, local power wrappers,
   kvm ignore_msrs, cros_usbpd_charger blacklist and webcam USB access rule.
 - Wi-Fi profile names home/hotspot/school are inputs to net; credentials,
-  identities and certificates must be supplied separately. Mullvad account
-  state, SSH keys and host keys are also excluded.
+  identities and certificates must be supplied separately. SSH keys and host
+  keys are also excluded.
 - Noto fonts and fontconfig preferences are package/dotfile supplied. User
   font directory is empty. Wallpaper is a personal file at
   ~/Pictures/Screensaver/Screensaver and must be restored separately.
@@ -83,15 +89,12 @@ remain in ignored `local/` and are not part of this repository.
 
 ## Final capture decisions
 
-GitHub confirmed all three pins above. There are 130 explicit packages: 122
-native, seven available through AUR RPC, and mullvad-vpn-cli whose original AUR
-recipe was recovered from surviving Git history. The recipe at
-`1f542474a3e05301c3025a46f54ac8c1234c8ed0` matches the installed version and install
-script and is the sole local package recipe retained here. The full native
+GitHub confirmed all three pins above. The current restore contains 129 explicit
+packages: 122 native and seven available through AUR RPC. The full native
 dependency closure was also resolved against an empty local Pacman database;
 no installed native package was left out of that simulated restoration.
 
-68 files are managed through the explicit allowlist, including staged desktop
+66 files are managed through the explicit allowlist, including staged desktop
 build artifacts. btop's version/default additions and swaylock/autostart changes
 are preserved as a small dotfiles patch. Wireless-regdom's added comment lines
 and unchanged pacman-contrib defaults need no override. Existing OBS recording
@@ -108,7 +111,7 @@ No user-installed fonts or additional active language toolchains were discovered
 
 - Live doas policy matches the pinned dotfiles source exactly. Its root-owned
   mode is 0600; the deployment manifest now captures that mode.
-- All eleven runit supervisors reported running services. Protected crypttab,
+- All retained runit supervisors reported running services. Protected crypttab,
   default/useradd, libaudit.conf and sshd_config match their package backup hashes.
 - The polkit rule `99-artix.rules` and SSH includes `99-artixlinux.conf` and
   `20-elogind-userdb.conf` are supplied by polkit, openssh and elogind. The last

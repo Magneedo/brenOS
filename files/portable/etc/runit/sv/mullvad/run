@@ -1,3 +1,0 @@
-#!/bin/sh
-export MULLVAD_RESOURCE_DIR="/opt/Mullvad VPN/resources/"
-exec /usr/bin/mullvad-daemon

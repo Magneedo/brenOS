@@ -12,7 +12,6 @@ nothing. Keep an independent backup and restore the items you still use.
 | Git identity | `git config --global user.name ...` / `user.email ...`, supplied locally |
 | Wi-Fi | Root-owned mode-0600 `home.conf`, `hotspot.conf`, `school.conf` under `/etc/wpa_supplicant` |
 | Enterprise Wi-Fi | Institution-supplied EAP method, identity, password, CA/client certificate/key and server-name validation policy |
-| Mullvad | Account login and new device registration through its CLI |
 | Wallpaper | `~/Pictures/Screensaver/Screensaver` |
 | Lockscreen image | `~/Pictures/Lockscreen/Lockscreen.jpg` |
 | Windows VM | `~/VM/Windows/disk.qcow2` and its matching `OVMF_VARS.fd` from a cleanly shut-down VM backup |
@@ -22,7 +21,7 @@ nothing. Keep an independent backup and restore the items you still use.
 | Disk UUIDs/EFI number | Derive on the newly installed disk; render under ignored `local/boot` |
 
 Never commit Wi-Fi files, identity certificates, SSH/GPG material, tokens,
-`~/.config/gh/hosts.yml`, Mullvad account state, OBS stream/service settings,
+`~/.config/gh/hosts.yml`, OBS stream/service settings,
 browser profiles, shell history, VM firmware state/images, application databases,
 game data, recordings, caches, logs or historical snapshots. Private-repository
 visibility is not a reason to store credentials. Git ignore rules are a convenience;

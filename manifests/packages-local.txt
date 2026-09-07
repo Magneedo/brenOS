@@ -1,2 +1,0 @@
-# Standard local PKGBUILD maintained under packages/.
-mullvad-vpn-cli
