@@ -6,6 +6,33 @@ installed configuration, packages, services, boot entries and storage were not
 modified. Builds, temporary roots, downloads and reports stayed in the new
 repository's ignored work area or temporary directories.
 
+## Guided installer validation — 2026-09-07
+
+- Current restore scope is 129 explicit packages, ten services and 66 managed
+  files. The removed VPN has no package recipe, service definition, resource
+  preflight or setuid requirement in the bootstrap.
+- Exercised `./install --profile framework --dry-run`: it prints the ordered
+  stages and manual gates without executing child commands or writing files.
+  Portable boot orchestration leaves hardware-specific image generation manual.
+- All twelve tests in `tests/installer.py` passed. They cover no-command previews,
+  refusal without a terminal, stopping on package failure, review before file or
+  service writes, user/root separation, group activation, boot/EFI gates, explicit
+  verification resume and propagation of verifier failures/incomplete results.
+- Tested Pacman policy replacement against temporary files using the actual
+  copy/install commands without doas: declining makes no change, reruns preserve
+  the first backup, and matching policy is left alone.
+- Exercised the fresh yay bootstrap against a temporary local Git repository,
+  with makepkg stubbed out. Declining recipe review stops before the build;
+  tracked edits are preserved, accepting resumes successfully, and an available
+  helper is reused. No network package source was built or installed by this test.
+- All six existing rehearsal tests still pass, including temporary-root file
+  deployment/idempotency and the protected-policy integrity regression. Syntax,
+  manifest coverage, obvious-secret scanning and local documentation links pass.
+
+The live installer was not applied to the reference laptop. These tests validate
+sequencing and safety boundaries; full AUR builds, fresh installation and physical
+boot/hibernate acceptance remain the documented target-machine tests.
+
 ## Original capture validation
 
 These results describe the initial capture before the user removed the VPN from
