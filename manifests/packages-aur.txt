@@ -1,0 +1,8 @@
+# Seven packages confirmed against AUR; see docs/packages.md.
+brave-origin-bin
+localsend
+open-tv-bin
+smem
+t3code-bin
+tofi
+yay
