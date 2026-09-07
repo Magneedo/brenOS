@@ -1,0 +1,15 @@
+# Profile filename, non-secret option, required value. Credentials stay local.
+home.conf	ctrl_interface	/run/wpa_supplicant
+home.conf	update_config	1
+home.conf	country	US
+hotspot.conf	ctrl_interface	/run/wpa_supplicant
+hotspot.conf	update_config	1
+hotspot.conf	country	US
+hotspot.conf	scan_ssid	1
+school.conf	ctrl_interface	/run/wpa_supplicant
+school.conf	update_config	1
+school.conf	country	US
+school.conf	key_mgmt	WPA-EAP-SHA256
+school.conf	ieee80211w	2
+school.conf	eap	PEAP
+school.conf	phase2	"auth=MSCHAPV2"

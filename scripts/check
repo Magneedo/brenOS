@@ -26,6 +26,12 @@ snapshot = set((REPO/'docs/packages-explicit.txt').read_text().splitlines())
 manifest = set(selected('packages', 'framework') + lines('packages-aur.txt') + lines('packages-local.txt'))
 if snapshot != manifest:
     errors.append('Explicit package snapshot and restoration manifests differ: ' + ', '.join(sorted(snapshot ^ manifest)))
+if not set(lines('policy-packages.txt')) <= manifest | set(lines('packages-runtime.txt')):
+    errors.append('Protected policy packages must be included in package restoration')
+for row in lines('directories.tsv'):
+    directory, owner, group, mode = row.split('\t')
+    if not Path(directory).is_absolute() or '..' in Path(directory).parts or not re.fullmatch(r'0[0-7]{3}', mode):
+        errors.append('Invalid directory permission: ' + row)
 patterns = [re.compile(p) for p in (
     r'-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----',
     r'gh[pousr]_[A-Za-z0-9]{30,}', r'github_pat_[A-Za-z0-9_]{40,}',

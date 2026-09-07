@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
-"""Read-only allowlisted audit. Never read credentials, Wi-Fi profiles or keys."""
+"""Read-only allowlisted audit. Exclude Wi-Fi secret values; never open keys/shadow."""
 import hashlib
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
+from common import lines
 
 if os.geteuid() != 0:
     sys.exit('Run with doas from a terminal; this script only reads state.')
 
 def command(*args):
-    result = subprocess.run(args, text=True, capture_output=True)
+    result = subprocess.run(args, text=True, capture_output=True, timeout=30,
+                            env=dict(os.environ, LC_ALL='C'))
     return {'status': result.returncode, 'stdout': result.stdout, 'stderr': result.stderr}
 
 report = {}
@@ -46,22 +48,43 @@ for key, args in {
 for directory in ('/etc/polkit-1/rules.d', '/var/spool/cron', '/etc/cron.d',
                   '/etc/ssh/sshd_config.d', '/etc/wpa_supplicant'):
     p = Path(directory)
-    report[directory] = [
-        {'name': f.name, 'mode': oct(f.stat().st_mode & 0o7777),
-         'uid': f.stat().st_uid, 'gid': f.stat().st_gid}
-        for f in sorted(p.iterdir()) if f.is_file()
-    ] if p.is_dir() else []
+    entries = []
+    for f in sorted(p.iterdir()) if p.is_dir() else []:
+        st = f.lstat()
+        entry = {'name': f.name, 'mode': oct(st.st_mode & 0o7777),
+                 'uid': st.st_uid, 'gid': st.st_gid}
+        if directory in ('/etc/polkit-1/rules.d', '/etc/ssh/sshd_config.d'):
+            owner = command('pacman', '-Qqo', str(f))
+            entry['package'] = owner['stdout'].strip() if owner['status'] == 0 else None
+        entries.append(entry)
+    report[directory] = entries
+# Pacman's own mtree checks cover packaged files and symlink targets without
+# teaching this bootstrap a second package-file integrity format.
+report['policy_package_checks'] = {
+    name: command('pacman', '-Qkk', name) for name in lines('policy-packages.txt')
+}
 # Authentication methods and control socket policy, excluding SSIDs, identities,
 # passwords, key material and certificate contents.
 report['wifi_methods'] = {}
+report['wifi_fields'] = {}
 allowed_wifi = {'ctrl_interface', 'update_config', 'country', 'ap_scan',
                 'key_mgmt', 'eap', 'phase1', 'phase2', 'proto', 'pairwise',
                 'group', 'ieee80211w', 'scan_ssid'}
+private_wifi = {'ssid', 'psk', 'sae_password', 'identity', 'anonymous_identity',
+                'password', 'ca_cert', 'ca_path', 'client_cert', 'private_key',
+                'private_key_passwd', 'domain_match', 'domain_suffix_match',
+                'subject_match', 'altsubject_match'}
 for profile in Path('/etc/wpa_supplicant').glob('*.conf'):
+    settings = [line.split('#', 1)[0].strip() for line in profile.read_text().splitlines()]
     report['wifi_methods'][profile.name] = [
-        line.strip() for line in profile.read_text().splitlines()
-        if line.strip().partition('=')[0].strip() in allowed_wifi
+        line for line in settings if line.partition('=')[0].strip() in allowed_wifi
     ]
+    # Names only identify locally supplied fields such as ca_cert/domain_match;
+    # their values (including identity, password and certificate paths) stay out.
+    report['wifi_fields'][profile.name] = sorted({
+        line.partition('=')[0].strip() for line in settings
+        if line.partition('=')[0].strip() in allowed_wifi | private_wifi
+    })
 ssh = Path('/etc/ssh/sshd_config')
 if ssh.is_file():
     # Configuration only; never open host keys, authorized_keys or certificates.

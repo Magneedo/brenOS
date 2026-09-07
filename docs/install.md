@@ -42,7 +42,7 @@ password-authenticated policy below; keep an existing working policy otherwise:
 usermod -aG wheel bren
 if [ ! -e /etc/doas.conf ]; then
     printf 'permit persist :wheel\n' > /etc/doas.conf
-    chmod 0400 /etc/doas.conf
+    chmod 0600 /etc/doas.conf
 fi
 ```
 
@@ -134,7 +134,8 @@ Individual replacements use a temporary file and rename. A whole stage is not
 a transaction; failures after successful writes can be resolved and rerun.
 
 Permissions restore the reference supplemental groups, subordinate ID range,
-capabilities, `/usr/bin/sh -> dash`, timezone and locale. It does not remove any
+capabilities, polkit rules-directory ownership, `/usr/bin/sh -> dash`, timezone
+and locale. It does not remove any
 existing group memberships. A conflicting subordinate ID allocation fails for
 manual resolution. Log out and back into tty2 to pick up groups.
 
@@ -173,8 +174,6 @@ it is not a side effect of package or file restoration.
 ```sh
 scripts/check
 python3 tests/rehearsal.py
-mkdir -p local
-doas scripts/audit-privileged > local/privileged-audit.json
 doas scripts/verify --profile framework
 ```
 
@@ -183,6 +182,8 @@ Before graphical login, missing session processes are expected findings. Read
 media before your first boot. After a successful boot, tty1 autologin starts the
 desktop; rerun verification there, then perform the documented hardware tests.
 Confirm tty2 password login and screen unlock before testing hibernation.
+The root verifier includes the protected audit; see verify.md to save private
+reports without hiding the interactive authentication prompt.
 
 Re-running stages normally skips installed packages, unchanged files and existing
 service links. Package restore performs a normal full rolling-release upgrade.

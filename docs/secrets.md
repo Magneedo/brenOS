@@ -49,20 +49,27 @@ For WPA-Personal, see `templates/wpa-personal.conf.example`. A PSK can be genera
 locally using `wpa_passphrase 'YOUR_SSID'` with the passphrase supplied on stdin,
 not as a command-line argument. Its output includes a commented cleartext
 passphrase; remove that comment when saving. The generated PSK is still a secret.
-The service's control directory is root:wheel mode 0770; its intended profile
-header is `ctrl_interface=DIR=/run/wpa_supplicant GROUP=wheel`.
+The service's control directory is root:wheel mode 0770. The authenticated
+reference profiles use `ctrl_interface=/run/wpa_supplicant`, `update_config=1`
+and `country=US`, with no explicit GROUP option. Retain the observed header;
+choose the correct country when installing in a different regulatory region.
 
-Repeat for hotspot and school if applicable. Enterprise profile contents could
-not be inspected without local authentication in the initial audit. Do not assume
-school uses WPA-Personal or invent PEAP/TLS parameters. Obtain the current
-institutional configuration, supply its certificates separately, preserve server
-certificate/name verification and record only non-secret authentication-method
-choices when the protected audit is completed. Do not disable CA verification
-to make an EAP connection succeed.
+Create hotspot.conf from the personal template and add `scan_ssid=1`, matching
+the reference. Create school.conf using `templates/wpa-school.conf.example`:
+WPA-EAP-SHA256, required protected management frames (`ieee80211w=2`), EAP-PEAP
+and inner `auth=MSCHAPV2`. Supply the SSID, identity and password locally. These
+method options follow the [upstream configuration format](https://chromium.googlesource.com/external/w1.fi/cgit/hostap/+/refs/tags/hostap_2_5/wpa_supplicant/wpa_supplicant.conf).
+
+The reference school profile has no CA certificate or server-name validation
+directives. Institution-specific CA/trust and server-name settings must be
+obtained from the institution; none were available to capture. Certificates and
+private identities remain outside Git. The template records the observed
+authentication method without inventing institutional trust values.
 
 Only `home.conf` is a prerequisite for the service stage. The verifier also checks
 the presence/private permissions of hotspot and school, because the existing net
-helper exposes all three. If a profile is no longer used, record that deliberate
+helper exposes all three; the protected verifier also checks the non-secret
+settings in `manifests/wifi-methods.tsv`. If a profile is no longer used, record that deliberate
 scope change rather than copying stale credentials.
 
 ## Desktop personal files
@@ -100,9 +107,10 @@ password in process arguments.
 
 ## Persistent configuration not to infer from state
 
-Cron directories/custom scheduler services were absent from the unprivileged
-audit. Monthly Btrfs scrub is an explicit manual maintenance task in the existing
+The authenticated audit confirmed no cron spool/cron.d entries and no installed
+crontab command. Monthly Btrfs scrub is an explicit manual maintenance task in the existing
 dotfiles documentation, not a missing scheduler. No new scrub timer, balance,
 defragmentation, snapshot pruning or smartd daemon is installed here. Protected
-cron/polkit/SSH policy still requires the read-only collector and review described
-in `validation.md`. Do not interpret unreadable files as empty/default files.
+polkit/SSH policy is supplied by checked packages, with the recorded polkit
+directory permission restored separately. Future custom policy or scheduled
+entries are reported for review rather than assumed to be covered.

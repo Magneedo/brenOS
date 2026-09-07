@@ -7,8 +7,8 @@ Intel i5-1240P**, x86_64, with `/home/bren` and UID 1000.
 Start with [the installation sequence](docs/install.md). It links the disk,
 package, boot, secret and verification instructions at the point they are needed.
 Read [the reference audit](docs/audit.md) and [validation results](docs/validation.md)
-before treating the capture as complete: protected policy still needs a locally
-authenticated audit, and physical restore/boot tests have not been performed.
+for coverage and test limits. The authenticated policy audit is complete;
+physical restore/boot tests have not been performed.
 
 This repository supplies manifests, selected missing files, small scripts and
 reviewed patches. The existing repositories remain the sources of truth:
@@ -49,7 +49,7 @@ account rather than relying on a hidden username substitution.
 
 | Path | Purpose |
 | --- | --- |
-| `manifests/` | Packages, services, groups, capabilities, pinned repositories, file allowlist |
+| `manifests/` | Packages, services, groups, capabilities, directory permissions, Wi-Fi methods, pinned repositories, file allowlist |
 | `files/portable`, `files/framework` | Missing reviewed configuration and scripts |
 | `patches/` | Reviewed live/uncommitted differences from the pinned repositories |
 | `packages/mullvad-vpn-cli/` | Recovered original AUR source recipe and license |

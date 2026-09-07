@@ -33,21 +33,35 @@ status files. For a complete privileged comparison after graphical login:
 
 ```sh
 cd ~/Projects/artix-bootstrap
-mkdir -p local
-doas scripts/audit-privileged > local/privileged-audit.json
 doas scripts/verify --profile framework
-doas scripts/verify --profile framework --json > local/verification.json
+umask 077
+mkdir -p local
+doas -n scripts/audit-privileged \
+  > local/privileged-audit.json
+doas -n scripts/verify --profile framework --json \
+  > local/verification.json
 ```
+
+Authenticate on the first command, where the fingerprint/password prompt is
+visible. The optional report commands use cached authentication in the same
+terminal; `-n` fails if it has expired. Rerun the first command if needed. The
+backslashes continue commands across lines; never split a script/file name at
+its hyphen. Reports stay in ignored `local/` with a private umask.
 
 The collector reads a protected configuration allowlist, metadata and selected
 non-secret Wi-Fi method settings. Review its report locally; do not commit or
-publish it wholesale. It never reads private keys or Wi-Fi PSKs/identities.
+publish it wholesale. It extracts allowed settings and field names from private
+Wi-Fi profiles but excludes SSIDs, PSKs, identities and passwords from the report.
+It never opens private keys, certificates or password databases.
 The collector does list cron entries if present, so review those privately too.
 Account passwords/shadow contents are never captured.
 
 When run as root, the verifier also collects current protected audit data and
 flags changed protected package defaults, custom polkit/SSH include files and
-scheduled entries that lack a restoration definition. When run unprivileged, a
+scheduled entries that lack a restoration definition. `pacman -Qkk` checks the
+three packages supplying protected policy. Its one known polkit directory GID
+warning is accepted only alongside a separate root:polkitd/0750 comparison;
+additional warnings or changed rule contents still fail. When run unprivileged, a
 saved report is only historical evidence and is labelled for review.
 
 Verifier exit codes: 0 means the automated comparisons passed, 1 means managed
@@ -57,10 +71,10 @@ older manpage; `MANUAL` records required physical tests. Zero is not proof that
 the machine boots or that hibernation works.
 
 Comparisons include managed contents/modes/owners, required packages, repository
-order, groups, subordinate ranges, capabilities, enabled/running services,
+order, groups, subordinate ranges, capabilities, directory permissions, enabled/running services,
 desktop library resolution, Noto fonts, user audio/portal/session processes,
 fstab and mounted filesystem UUIDs/subvolumes, EFI kernel entry, kernel arguments,
-resume partition and manual asset/profile presence. OBS is checked against its
+resume partition, private profile methods and manual asset/profile presence. OBS is checked against its
 managed key subset; extra application state is not compared or exported.
 
 The binaries are tested by rebuilding their pinned sources and checking installed

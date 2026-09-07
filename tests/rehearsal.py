@@ -3,10 +3,13 @@
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO/'scripts'))
+from common import policy_integrity_ok
 
 class Rehearsal(unittest.TestCase):
     def setUp(self):
@@ -74,6 +77,15 @@ class Rehearsal(unittest.TestCase):
                 result = subprocess.run([str(REPO/'scripts'/script)], capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertTrue(result.stdout.strip())
+
+    def test_directory_override_does_not_hide_changed_policy(self):
+        observed = 'warning: polkit: /etc/polkit-1/rules.d (GID mismatch)\n'
+        self.assertTrue(policy_integrity_ok('polkit', {'status': 1, 'stderr': observed}))
+        changed_rule = 'warning: polkit: /etc/polkit-1/rules.d/99-artix.rules (SHA256 checksum mismatch)\n'
+        self.assertFalse(policy_integrity_ok('polkit', {'status': 1, 'stderr': observed + changed_rule}))
+        self.assertFalse(policy_integrity_ok('polkit', {'status': 1, 'stderr': changed_rule}))
+        self.assertFalse(policy_integrity_ok('openssh', {'status': 1, 'stderr': observed}))
+        self.assertFalse(policy_integrity_ok('polkit', {'status': 2, 'stderr': observed}))
 
 if __name__ == '__main__':
     if os.geteuid() == 0:

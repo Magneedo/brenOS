@@ -6,7 +6,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
-from common import lines, run, output
+from common import lines, run, output, target_path
 
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('--apply', action='store_true')
@@ -15,6 +15,8 @@ print('User bren: supplemental groups ' + ', '.join(lines('groups.txt')))
 print('Subuid/subgid: bren:100000:65536; /usr/bin/sh -> dash; timezone America/New_York; en_US.UTF-8')
 for row in lines('capabilities.tsv'):
     print('Capability: ' + row.replace('\t', ' '))
+for row in lines('directories.tsv'):
+    print('Directory permission: ' + row.replace('\t', ' '))
 if not a.apply:
     sys.exit(0)
 if os.geteuid() != 0:
@@ -35,6 +37,13 @@ for row in lines('capabilities.tsv'):
         sys.exit(f'Missing {path}; restore packages first.')
 if not Path('/usr/bin/dash').is_file() or not Path('/usr/bin/sh').is_symlink():
     sys.exit('Expected dash installed and /usr/bin/sh to be a symlink; resolve manually.')
+for row in lines('directories.tsv'):
+    directory, owner, group, mode = row.split('\t')
+    path = target_path(Path('/'), directory.removeprefix('/'))
+    if not path.is_dir():
+        sys.exit(f'Missing directory {directory}; restore packages first.')
+    output('getent', 'passwd', owner)
+    output('getent', 'group', group)
 for group in lines('groups.txt'):
     if subprocess.run(['getent', 'group', group], stdout=subprocess.DEVNULL).returncode:
         run('groupadd', '--system', group)
@@ -46,6 +55,10 @@ for row in lines('capabilities.tsv'):
     path, caps = row.split('\t')
     if output('getcap', path) != f'{path} {caps}':
         run('setcap', caps, path)
+for row in lines('directories.tsv'):
+    directory, owner, group, mode = row.split('\t')
+    run('chown', owner + ':' + group, directory)
+    run('chmod', mode, directory)
 if os.readlink('/usr/bin/sh') != 'dash':
     saved = Path('/var/lib/artix-bootstrap/sh.before-bootstrap')
     saved.parent.mkdir(parents=True, exist_ok=True)
