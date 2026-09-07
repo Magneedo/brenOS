@@ -1,0 +1,8 @@
+audio
+input
+kvm
+network
+seat
+storage
+video
+wheel

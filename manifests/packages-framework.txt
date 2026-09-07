@@ -1,0 +1,8 @@
+# Intel Framework 13 1240P graphics, firmware and fingerprint support.
+fprintd
+intel-media-driver
+intel-ucode
+lib32-vulkan-intel
+linux-firmware-intel
+linux-firmware-realtek
+vulkan-intel

@@ -1,0 +1,156 @@
+#!/bin/sh
+set -eu
+umask 077
+
+# Load overrides before deriving paths from VM. A positional username wins.
+if [ -r "$HOME/.config/windows-rdp.env" ]; then
+  . "$HOME/.config/windows-rdp.env"
+fi
+
+VM="${VM:-$HOME/VM/Windows}"
+DISK="${DISK:-$VM/disk.qcow2}"
+OVMF_CODE="${OVMF_CODE:-/usr/share/edk2-ovmf/x64/OVMF_CODE.4m.fd}"
+OVMF_VARS="${OVMF_VARS:-$VM/OVMF_VARS.fd}"
+OVMF_VARS_SRC="${OVMF_VARS_SRC:-/usr/share/edk2-ovmf/x64/OVMF_VARS.4m.fd}"
+QMP="${QMP:-$VM/qmp.sock}"
+PID="${PID:-$VM/qemu.pid}"
+
+WINUSER="${1:-${WINUSER:-Brendyn}}"
+WINPASS="${WINPASS:-}"
+PORT="${PORT:-3390}"
+PIN_CPUS="${PIN_CPUS:-8-15}"
+# Coursework/Office defaults; keep Linux responsive on this hybrid CPU.
+RAM="${RAM:-6G}"
+SMP="${SMP:-4}"
+RDP_BIN="${RDP_BIN:-xfreerdp3}"
+RDP_LOG_LEVEL="${RDP_LOG_LEVEL:-ERROR}"
+RDP_TIMEOUT="${RDP_TIMEOUT:-180}"
+RDP_READY="$HOME/.local/libexec/windows-rdp-ready"
+CPUFLAGS="${CPUFLAGS:-host,kvm=on,hv_relaxed,hv_vapic,hv_time,hv_vpindex,hv_runtime,hv_synic,hv_stimer,hv_tlbflush,hv_frequencies,hv_reenlightenment,hv_ipi}"
+
+[ -n "${WINPASS:-}" ] || { echo "WINPASS must be set in env or ~/.config/windows-rdp.env" >&2; exit 2; }
+[ -f "$DISK" ] || { echo "No disk: $DISK" >&2; exit 2; }
+[ -f "$OVMF_CODE" ] || { echo "No OVMF code file: $OVMF_CODE" >&2; exit 2; }
+for command in qemu-system-x86_64 taskset flock python3 "$RDP_BIN"; do
+  command -v "$command" >/dev/null 2>&1 || { echo "$command not found" >&2; exit 127; }
+done
+[ -x "$RDP_READY" ] || { echo "Missing RDP readiness helper: $RDP_READY" >&2; exit 127; }
+case "$PORT" in ''|*[!0-9]*) echo "PORT must be a number from 1 to 65535" >&2; exit 2 ;; esac
+[ "$PORT" -ge 1 ] 2>/dev/null && [ "$PORT" -le 65535 ] 2>/dev/null || { echo "PORT must be a number from 1 to 65535" >&2; exit 2; }
+case "$RDP_TIMEOUT" in ''|*[!0-9]*) echo "RDP_TIMEOUT must be positive seconds" >&2; exit 2 ;; esac
+[ "$RDP_TIMEOUT" -gt 0 ] 2>/dev/null || { echo "RDP_TIMEOUT must be positive seconds" >&2; exit 2; }
+
+mkdir -p "$VM"
+
+# Serialize firmware setup, stale-state cleanup, and daemon startup only.
+exec 9>"$VM/launch.lock"
+flock -x 9
+
+vm_pid() {
+  python3 - "$PID" "$QMP" <<'PY'
+from pathlib import Path
+import os
+import sys
+
+pidfile, qmp = sys.argv[1:]
+try:
+    value = Path(pidfile).read_text().strip()
+except FileNotFoundError:
+    sys.exit(1)
+except (OSError, UnicodeError):
+    print("Cannot read VM PID file; refusing to alter runtime files", file=sys.stderr)
+    sys.exit(2)
+if not value.isascii() or not value.isdecimal() or len(value) > 10 or not 1 < int(value) <= 2147483647:
+    print("Invalid VM PID file; refusing to alter runtime files", file=sys.stderr)
+    sys.exit(2)
+pid = int(value)
+try:
+    os.kill(pid, 0)
+except ProcessLookupError:
+    sys.exit(1)
+except (PermissionError, OverflowError):
+    print("Cannot verify VM process; refusing to alter runtime files", file=sys.stderr)
+    sys.exit(2)
+try:
+    executable = os.readlink(f"/proc/{pid}/exe").removesuffix(" (deleted)")
+    args = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")
+except FileNotFoundError:
+    sys.exit(1)
+except PermissionError:
+    print("Cannot inspect VM process identity", file=sys.stderr)
+    sys.exit(2)
+def option(name, expected):
+    name, expected = os.fsencode(name), os.fsencode(expected)
+    return any(a == name and b == expected for a, b in zip(args, args[1:]))
+if Path(executable).name != "qemu-system-x86_64" or not (
+        option("-pidfile", pidfile) and option("-qmp", f"unix:{qmp},server,nowait")):
+    print("VM PID belongs to another process; refusing to alter runtime files", file=sys.stderr)
+    sys.exit(2)
+print(pid)
+PY
+}
+
+running_pid=""
+if running_pid="$(vm_pid)"; then
+  :
+else
+  status=$?
+  [ "$status" -eq 1 ] || exit "$status"
+  # A live listener can indicate a VM whose PID file was lost. Never unlink it.
+  python3 - "$QMP" <<'PY'
+import errno
+import socket
+import sys
+with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+    sock.settimeout(1)
+    try:
+        sock.connect(sys.argv[1])
+    except OSError as error:
+        if error.errno not in (errno.ENOENT, errno.ECONNREFUSED):
+            print("Cannot verify QMP socket; refusing to alter it", file=sys.stderr)
+            sys.exit(2)
+    else:
+        print("QMP socket is active without a matching PID; refusing duplicate startup", file=sys.stderr)
+        sys.exit(2)
+PY
+  rm -f -- "$PID" "$QMP"
+  [ -f "$OVMF_VARS" ] || cp "$OVMF_VARS_SRC" "$OVMF_VARS"
+
+  taskset -c "$PIN_CPUS" qemu-system-x86_64 \
+    -enable-kvm \
+    -machine q35,accel=kvm \
+    -cpu "$CPUFLAGS" \
+    -smp "$SMP" \
+    -m "$RAM" \
+    -rtc base=localtime \
+    -display none \
+    -vga none \
+    -device virtio-gpu-pci \
+    -global kvm-pit.lost_tick_policy=discard \
+    -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
+    -drive if=pflash,format=raw,file="$OVMF_VARS" \
+    -drive if=none,id=vdisk,file="$DISK",format=qcow2,cache=writeback,discard=unmap,aio=io_uring \
+    -device virtio-blk-pci,drive=vdisk \
+    -netdev user,id=n1,hostfwd=tcp:127.0.0.1:${PORT}-:3389 \
+    -device e1000e,netdev=n1 \
+    -qmp unix:"$QMP",server,nowait \
+    -pidfile "$PID" \
+    -daemonize 9>&-
+  running_pid="$(vm_pid)" || { echo "QEMU failed to start; check its errors above" >&2; exit 1; }
+fi
+
+exec 9>&-
+"$RDP_READY" "$PORT" "$running_pid" "$RDP_TIMEOUT"
+
+USER_FMT=".\\$WINUSER"
+
+exec "$RDP_BIN" /args-from:stdin <<EOF
+/v:127.0.0.1:$PORT
+/u:$USER_FMT
+/p:$WINPASS
+/clipboard:use-selection:CLIPBOARD,direction-to:all
+/dynamic-resolution
+/cert:ignore
+/log-level:$RDP_LOG_LEVEL
+/auth-pkg-list:!kerberos,!u2u,ntlm
+EOF

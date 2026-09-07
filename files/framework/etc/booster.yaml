@@ -1,0 +1,7 @@
+universal: false
+compression: zstd
+mount_timeout: 30s
+vconsole: true
+modules: btrfs,nvme,nvme_core,nvme_auth,nvme_keyring,i915
+modules_force_load: i915
+extra_files: busybox

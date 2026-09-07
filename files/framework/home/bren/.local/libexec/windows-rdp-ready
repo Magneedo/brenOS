@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+"""Wait for guest RDP negotiation, rather than QEMU's TCP forwarding listener."""
+
+import math
+import os
+import socket
+import sys
+import time
+
+
+# TPKT + X.224 connection request, offering TLS and CredSSP. No credentials.
+REQUEST = bytes.fromhex("030000130ee000000000000100080003000000")
+IO_TIMEOUT = 0.5
+ATTEMPT_TIMEOUT = 1.0
+RETRY_DELAY = 0.25
+
+
+class GuestExited(Exception):
+    pass
+
+
+def process_alive(pid):
+    try:
+        os.kill(pid, 0)
+    except (ProcessLookupError, OverflowError):
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def check_time(sock, pid, deadline):
+    if not process_alive(pid):
+        raise GuestExited
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise TimeoutError
+    sock.settimeout(min(IO_TIMEOUT, remaining))
+
+
+def receive_exact(sock, count, pid, deadline):
+    result = bytearray()
+    while len(result) < count:
+        check_time(sock, pid, deadline)
+        chunk = sock.recv(count - len(result))
+        if not chunk:
+            raise ConnectionError("RDP peer closed the connection")
+        result.extend(chunk)
+    return bytes(result)
+
+
+def negotiate(port, pid, deadline):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        check_time(sock, pid, deadline)
+        sock.connect(("127.0.0.1", port))
+        check_time(sock, pid, deadline)
+        sock.sendall(REQUEST)
+        header = receive_exact(sock, 4, pid, deadline)
+        length = int.from_bytes(header[2:4], "big")
+        # Confirm is seven bytes, optionally followed by eight negotiation bytes.
+        if header[:2] != b"\x03\x00" or length not in (11, 19):
+            return False
+        body = receive_exact(sock, length - 4, pid, deadline)
+        if body[0] != length - 5 or body[1] != 0xD0 or body[6] != 0:
+            return False
+        if length == 11:
+            return True
+        # Both a negotiation response and a failure identify a ready RDP service.
+        # FreeRDP performs the actual security negotiation and reports failures.
+        return body[7] in (2, 3) and body[9:11] == b"\x08\x00"
+
+
+def wait_ready(port, pid, timeout):
+    deadline = time.monotonic() + timeout
+    while True:
+        if not process_alive(pid):
+            raise GuestExited
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        try:
+            attempt_deadline = min(deadline, time.monotonic() + ATTEMPT_TIMEOUT)
+            if negotiate(port, pid, attempt_deadline):
+                # A response arriving at the limit must not overrun the deadline.
+                if not process_alive(pid):
+                    raise GuestExited
+                return time.monotonic() < deadline
+        except OSError:
+            pass
+        remaining = deadline - time.monotonic()
+        if remaining > 0:
+            time.sleep(min(RETRY_DELAY, remaining))
+
+
+def main(argv=None):
+    args = sys.argv[1:] if argv is None else argv
+    try:
+        if len(args) != 3:
+            raise ValueError
+        port, pid = int(args[0]), int(args[1])
+        timeout = float(args[2])
+        if not (1 <= port <= 65535 and pid > 0):
+            raise ValueError
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError
+    except ValueError:
+        print("Usage: windows-rdp-ready PORT POSITIVE_PID TIMEOUT_SECONDS", file=sys.stderr)
+        return 2
+    try:
+        if wait_ready(port, pid, timeout):
+            return 0
+    except GuestExited:
+        print("windows-rdp-ready: QEMU exited before RDP was ready", file=sys.stderr)
+        return 1
+    print(f"windows-rdp-ready: RDP did not become ready on 127.0.0.1:{port} "
+          f"within {timeout:g} seconds", file=sys.stderr)
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

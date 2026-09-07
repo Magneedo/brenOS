@@ -1,0 +1,4 @@
+# path	capabilities
+/usr/bin/btop	cap_dac_read_search,cap_perfmon=ep
+/usr/bin/newgidmap	cap_setgid=ep
+/usr/bin/newuidmap	cap_setuid=ep
