@@ -1,0 +1,16 @@
+# Non-secret methods from the reference school.conf. Supply private fields locally.
+ctrl_interface=/run/wpa_supplicant
+update_config=1
+country=US
+
+network={
+    ssid="SUPPLY_LOCALLY"
+    key_mgmt=WPA-EAP-SHA256
+    ieee80211w=2
+    eap=PEAP
+    phase2="auth=MSCHAPV2"
+    identity="SUPPLY_LOCALLY"
+    password="SUPPLY_LOCALLY"
+    # Obtain the institution's current CA and server-name validation policy.
+    # Keep certificates and any certificate paths/identities outside Git.
+}

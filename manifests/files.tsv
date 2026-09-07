@@ -26,7 +26,7 @@ portable	dotfiles	home/.local/bin/statusd	home/bren/.local/bin/statusd	0755
 portable	dotfiles	home/.local/bin/wallpaper	home/bren/.local/bin/wallpaper	0755
 portable	dotfiles	home/.profile	home/bren/.profile	0644
 portable	dotfiles	home/.vimrc	home/bren/.vimrc	0644
-portable	dotfiles	etc/doas.conf	etc/doas.conf	0400
+portable	dotfiles	etc/doas.conf	etc/doas.conf	0600
 framework	dotfiles	usr/local/bin/hibernate	usr/local/bin/hibernate	0755
 portable	dotfiles	etc/runit/sv/agetty-tty1/conf	etc/runit/sv/agetty-tty1/conf	0755
 portable	dotfiles	etc/runit/sv/dhcpcd/run	etc/runit/sv/dhcpcd/run	0755

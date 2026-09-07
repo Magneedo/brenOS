@@ -63,3 +63,11 @@ def run(*args):
 
 def output(*args):
     return subprocess.check_output(args, text=True).strip()
+
+def policy_integrity_ok(name, result):
+    # The one captured package-metadata difference is also checked against
+    # directories.tsv. Any additional warning or content change remains a failure.
+    return result.get('status') == 0 or (
+        name == 'polkit' and result.get('status') == 1
+        and result.get('stderr', '').splitlines() ==
+        ['warning: polkit: /etc/polkit-1/rules.d (GID mismatch)'])

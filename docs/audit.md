@@ -76,10 +76,10 @@ VM and game data, caches, logs, machine-id, generated host keys and historical
 snapshots. Application scene/service files in dotfiles need an explicit review
 before inclusion; the bootstrap must not blindly deploy the entire repository.
 
-The sandbox maps unrelated users to nobody and hides host groups. Privileged
-read-only audit is required to verify doas, protected PAM/polkit/SSH policy,
-groups, capabilities, Btrfs subvolumes and scheduled jobs. doas -n requires
-local authentication; any remaining blind spots must be reported honestly.
+The initial sandbox mapped unrelated users to nobody and hid host groups.
+Those observations were supplemented by host inspection and an authenticated,
+read-only audit on 2026-09-07. See the protected findings below; raw reports
+remain in ignored `local/` and are not part of this repository.
 
 ## Final capture decisions
 
@@ -104,6 +104,30 @@ wheel; the recorded capabilities; dash as /bin/sh; bren's subordinate ID ranges;
 New York timezone; current EFI parameters; and the active audio/desktop processes.
 No user-installed fonts or additional active language toolchains were discovered.
 
-The concrete restore procedure, tested behavior and remaining authenticated audit
-requirements are documented in install.md and validation.md. In particular,
-protected doas/SSH/polkit/cron details have not been assumed to be empty or verified.
+## Authenticated protected findings — 2026-09-07
+
+- Live doas policy matches the pinned dotfiles source exactly. Its root-owned
+  mode is 0600; the deployment manifest now captures that mode.
+- All eleven runit supervisors reported running services. Protected crypttab,
+  default/useradd, libaudit.conf and sshd_config match their package backup hashes.
+- The polkit rule `99-artix.rules` and SSH includes `99-artixlinux.conf` and
+  `20-elogind-userdb.conf` are supplied by polkit, openssh and elogind. The last
+  include is a package symlink to `/usr/lib/elogind/sshd_config.d/`. File contents
+  match package integrity checks; reinstall their packages, without local copies.
+- `/etc/polkit-1/rules.d` is root:polkitd, mode 0750. The package archive records
+  root:root, so the group difference is explicitly captured in directories.tsv
+  and restored by the permissions stage. Pacman integrity verification permits
+  only this specific warning and verifies the actual directory owner/group/mode.
+- No cron spool entries or cron.d entries exist and crontab is not installed.
+  The protected inspection found no extra local SSH includes or polkit rules.
+- All three Wi-Fi profiles are root-owned mode 0600. Their non-secret settings
+  use `/run/wpa_supplicant`, update_config=1 and country=US; hotspot additionally
+  uses scan_ssid=1. School uses WPA-EAP-SHA256, ieee80211w=2, PEAP and inner
+  MSCHAPV2. Methods are recorded in wifi-methods.tsv and secret-free templates;
+  SSIDs, PSKs, identities and passwords are excluded. No CA or server-name
+  validation directives were present; institutional trust settings remain manual.
+- Btrfs contains the intended @ and @snapshots plus historical snapshots and old
+  root subvolumes. Those historical contents/layout remnants are state, not
+  additional subvolumes required by the restore.
+
+The complete procedure and validation limits are in install.md and validation.md.

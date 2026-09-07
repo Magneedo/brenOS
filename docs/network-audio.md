@@ -17,9 +17,12 @@ their log directories are created, but old logs are not restored.
 tty1 autologins bren, tty2 remains a password login. seatd runs with group `seat`
 and checks `/run/seatd.sock`. Bluetooth waits for the system D-Bus socket, then
 runs foreground with the battery plugin disabled. SSH runs foreground and uses
-normal OpenSSH configuration and separately generated host keys. chrony is the
+package-default OpenSSH configuration, the packaged Artix/elogind include files
+and separately generated host keys. chrony is the
 time service. elogind, polkit, rtkit and user D-Bus services may be activated on
-demand; they are not extra runit links to invent.
+demand; they are not extra runit links to invent. The polkit rule comes from its
+package; the permissions stage preserves `/etc/polkit-1/rules.d` as root:polkitd,
+mode 0750, using the target's group ID rather than a copied numeric allocation.
 
 Use `doas sv status /run/runit/service/*` to inspect supervisors. To deliberately
 restart one after a config change, use e.g. `doas sv restart /run/runit/service/seatd`
@@ -38,8 +41,9 @@ runtime state; do not copy their current nameservers or leases.
 
 `/etc/runit/sv/wpa_supplicant/conf` chooses `/etc/wpa_supplicant/home.conf`
 and wlan0 by default. The captured run script creates `/run/wpa_supplicant`
-root:wheel mode 0770. Profiles should select that control socket/group if
-`statusd`/`wpa_cli` need access. See [secrets.md](secrets.md) for private profile
+root:wheel mode 0770. The actual profiles specify
+`ctrl_interface=/run/wpa_supplicant`, without an explicit GROUP option. The
+templates retain that configuration. See [secrets.md](secrets.md) for private profile
 creation; home, hotspot and school are logical names, not saved SSIDs.
 
 After supplying profiles, `net home`, `net hotspot`, `net school`, and `net eth`
@@ -59,7 +63,10 @@ MAC-address rule or stored wireless secret is used to force device naming.
 `/etc/conf.d/wireless-regdom` are commented out; the file's difference from
 dotfiles is only an updated list of comments. Package defaults are sufficient.
 Supply the correct regulatory country locally where required rather than copying
-a country inferred from a Wi-Fi SSID.
+a country inferred from a Wi-Fi SSID. The authenticated audit confirmed that
+each private profile separately sets `country=US`; the templates and method
+manifest capture that observed value. Adjust it deliberately when operating in
+a different regulatory region.
 
 For problems, use `ip -br link`, `ip route`, `wpa_cli -i wlan0 status`, and the
 runit status commands. These can print SSIDs/IP addresses; do not paste their

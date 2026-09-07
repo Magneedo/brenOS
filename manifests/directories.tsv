@@ -1,0 +1,2 @@
+# Absolute directory, owner, group, mode. Groups are resolved on the target.
+/etc/polkit-1/rules.d	root	polkitd	0750

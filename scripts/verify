@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Read-only comparison with the intended installation. 0=pass, 1=drift, 2=incomplete."""
 import argparse
+import grp
 import json
 import os
 from pathlib import Path
+import pwd
 import re
 import shutil
 import subprocess
 import sys
-from common import REPO, equivalent, file_rows, lines, selected, source_path, target_path
+from common import REPO, equivalent, file_rows, lines, selected, source_path, target_path, policy_integrity_ok
 
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('--profile', choices=['portable', 'framework'], default='portable')
@@ -90,6 +92,17 @@ if root == Path('/'):
         actual = command('getcap', path)
         if actual is not None:
             check(actual == f'{path} {caps}', path + ':capability', caps)
+    for row in lines('directories.tsv'):
+        directory, owner, group, mode = row.split('\t')
+        try:
+            path = target_path(Path('/'), directory.removeprefix('/'))
+            st = path.stat()
+            check(path.is_dir() and st.st_uid == pwd.getpwnam(owner).pw_uid
+                  and st.st_gid == grp.getgrnam(group).gr_gid
+                  and st.st_mode & 0o7777 == int(mode, 8), 'directory:' + directory,
+                  'Expected ' + owner + ':' + group + ' ' + mode)
+        except (OSError, KeyError, ValueError) as e:
+            record('FAIL', 'directory:' + directory, str(e))
     for path in ('/usr/bin/doas', '/usr/bin/mullvad-exclude'):
         f = Path(path)
         check(f.is_file() and f.stat().st_mode & 0o4000 and f.stat().st_uid == 0, path + ':setuid', 'Root-owned setuid executable')
@@ -200,6 +213,13 @@ if root == Path('/'):
     if protected is None:
         record('UNKNOWN', 'protected-audit', 'Run scripts/audit-privileged as root to inspect protected policy and scheduled-job coverage')
     else:
+        if a.profile == 'framework':
+            for row in lines('wifi-methods.tsv'):
+                name, option, value = row.split('\t')
+                settings = {key.strip(): val.strip() for entry in protected.get('wifi_methods', {}).get(name, [])
+                            for key, _, val in [entry.partition('=')]}
+                check(settings.get(option) == value, 'wifi-method:' + name + ':' + option,
+                      'Expected non-secret setting ' + option + '=' + value)
         defaults = {}
         for path in Path('/var/lib/pacman/local').glob('*/files'):
             data = path.read_text()
@@ -210,7 +230,25 @@ if root == Path('/'):
         for name, checksum in protected.get('protected_md5', {}).items():
             check(defaults.get(name) == checksum, 'protected:' + name,
                   'Must match package default; a difference needs reviewed capture/manual provisioning')
-        for directory in ('/etc/polkit-1/rules.d', '/var/spool/cron', '/etc/cron.d', '/etc/ssh/sshd_config.d'):
+        policy_packages = set(lines('policy-packages.txt'))
+        for name in sorted(policy_packages):
+            integrity = protected.get('policy_package_checks', {}).get(name)
+            if integrity is None:
+                record('UNKNOWN', 'package-policy:' + name, 'Rerun the collector to check packaged policy with pacman -Qkk')
+            else:
+                # The reference gives polkitd access to this mode-0750 directory;
+                # the package archive records root:root. Check that intentional
+                # difference through directories.tsv, without ignoring any other
+                # Pacman warning or any file-content difference.
+                check(policy_integrity_ok(name, integrity), 'package-policy:' + name,
+                      'Pacman integrity; captured directory ownership is checked separately. Inspect doas pacman -Qkk ' + name + ' on failure')
+        for directory in ('/etc/polkit-1/rules.d', '/etc/ssh/sshd_config.d'):
+            custom = [entry['name'] for entry in protected.get(directory, [])
+                      if entry.get('package') not in policy_packages]
+            check(not custom, 'protected:' + directory,
+                  'Uncaptured local policy: ' + ', '.join(custom) if custom else
+                  'Policy is supplied by the checked packages')
+        for directory in ('/var/spool/cron', '/etc/cron.d'):
             check(not protected.get(directory), 'protected:' + directory,
                   'Any custom files need explicit review; no files from this directory are deployed')
         for job in ('user_cron', 'root_cron'):
