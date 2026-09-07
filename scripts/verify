@@ -185,9 +185,38 @@ if root == Path('/'):
         for name in ('Pictures/Screensaver/Screensaver', 'Pictures/Lockscreen/Lockscreen.jpg', 'VM/Windows/disk.qcow2'):
             check((Path('/home/bren') / name).is_file(), 'manual:' + name, 'Restore separately from personal backup')
         record('MANUAL', 'hardware-smoke-tests', 'Test fingerprint login, Wi-Fi profiles, Bluetooth, screen sharing, audio and hibernation physically; see docs/verify.md')
-    report = REPO / 'local/privileged-audit.json'
-    if not report.is_file():
+    report_path = REPO / 'local/privileged-audit.json'
+    protected = None
+    try:
+        if os.geteuid() == 0:
+            raw = command(sys.executable, str(REPO / 'scripts/audit-privileged'))
+            if raw is not None:
+                protected = json.loads(raw)
+        elif report_path.is_file():
+            protected = json.loads(report_path.read_text())
+            record('REVIEW', 'protected-audit-age', 'Using the saved audit; rerun as root for current protected state')
+    except (OSError, ValueError):
+        record('UNKNOWN', 'protected-audit', 'Saved/protected report could not be read or parsed')
+    if protected is None:
         record('UNKNOWN', 'protected-audit', 'Run scripts/audit-privileged as root to inspect protected policy and scheduled-job coverage')
+    else:
+        defaults = {}
+        for path in Path('/var/lib/pacman/local').glob('*/files'):
+            data = path.read_text()
+            if '%BACKUP%\n' in data:
+                for row in data.split('%BACKUP%\n')[1].split('\n\n')[0].splitlines():
+                    name, _, checksum = row.partition('\t')
+                    defaults['/' + name] = checksum
+        for name, checksum in protected.get('protected_md5', {}).items():
+            check(defaults.get(name) == checksum, 'protected:' + name,
+                  'Must match package default; a difference needs reviewed capture/manual provisioning')
+        for directory in ('/etc/polkit-1/rules.d', '/var/spool/cron', '/etc/cron.d', '/etc/ssh/sshd_config.d'):
+            check(not protected.get(directory), 'protected:' + directory,
+                  'Any custom files need explicit review; no files from this directory are deployed')
+        for job in ('user_cron', 'root_cron'):
+            active = [l for l in protected.get(job, {}).get('stdout', '').splitlines()
+                      if l.strip() and not l.lstrip().startswith('#')]
+            check(not active, 'scheduled:' + job, 'Any active entries need a separate reviewed manifest')
 else:
     record('INFO', 'staging', 'Only file content and modes were checked. Packages, ownership, services and hardware require the installed host.')
 

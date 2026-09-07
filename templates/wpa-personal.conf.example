@@ -1,0 +1,9 @@
+# Copy/edit locally only. This is a template, not a usable network profile.
+ctrl_interface=DIR=/run/wpa_supplicant GROUP=wheel
+update_config=1
+
+network={
+    ssid="SUPPLY_LOCALLY"
+    # Add the generated psk locally. Never commit it, including its hash form.
+    key_mgmt=WPA-PSK
+}
