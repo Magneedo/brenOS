@@ -1,0 +1,4 @@
+# Unified-diff context contains deliberate spaces/tabs.
+patches/*.patch -whitespace
+# Captured configuration preserves the reference files' trailing blank lines.
+files/** whitespace=-blank-at-eof

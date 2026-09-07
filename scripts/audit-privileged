@@ -46,6 +46,17 @@ for directory in ('/etc/polkit-1/rules.d', '/var/spool/cron', '/etc/cron.d',
          'uid': f.stat().st_uid, 'gid': f.stat().st_gid}
         for f in sorted(p.iterdir()) if f.is_file()
     ] if p.is_dir() else []
+# Authentication methods and control socket policy, excluding SSIDs, identities,
+# passwords, key material and certificate contents.
+report['wifi_methods'] = {}
+allowed_wifi = {'ctrl_interface', 'update_config', 'country', 'ap_scan',
+                'key_mgmt', 'eap', 'phase1', 'phase2', 'proto', 'pairwise',
+                'group', 'ieee80211w', 'scan_ssid'}
+for profile in Path('/etc/wpa_supplicant').glob('*.conf'):
+    report['wifi_methods'][profile.name] = [
+        line.strip() for line in profile.read_text().splitlines()
+        if line.strip().partition('=')[0].strip() in allowed_wifi
+    ]
 ssh = Path('/etc/ssh/sshd_config')
 if ssh.is_file():
     # Configuration only; never open host keys, authorized_keys or certificates.

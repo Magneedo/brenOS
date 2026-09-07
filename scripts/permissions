@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""Restore the reference groups, subordinate IDs, capabilities and sh selection."""
+import argparse
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+from common import lines, run, output
+
+p = argparse.ArgumentParser(description=__doc__)
+p.add_argument('--apply', action='store_true')
+a = p.parse_args()
+print('User bren: supplemental groups ' + ', '.join(lines('groups.txt')))
+print('Subuid/subgid: bren:100000:65536; /usr/bin/sh -> dash; timezone America/New_York; en_US.UTF-8')
+for row in lines('capabilities.tsv'):
+    print('Capability: ' + row.replace('\t', ' '))
+if not a.apply:
+    sys.exit(0)
+if os.geteuid() != 0:
+    sys.exit('Use doas for --apply.')
+account = output('getent', 'passwd', 'bren').split(':')
+if account[2] != '1000' or account[5:] != ['/home/bren', '/bin/bash']:
+    sys.exit('Expected bren with UID 1000, /home/bren and /bin/bash; see prerequisites.')
+for name in ('subuid', 'subgid'):
+    path = Path('/etc') / name
+    rows = [l.split(':') for l in path.read_text().splitlines() if l]
+    for user, start, count in rows:
+        if (user == 'bren' and (start, count) != ('100000', '65536')) or (
+                user != 'bren' and int(start) < 165536 and int(start) + int(count) > 100000):
+            sys.exit(f'Conflicting subordinate ID allocation in {path}; resolve manually.')
+for row in lines('capabilities.tsv'):
+    path, caps = row.split('\t')
+    if not Path(path).is_file():
+        sys.exit(f'Missing {path}; restore packages first.')
+if not Path('/usr/bin/dash').is_file() or not Path('/usr/bin/sh').is_symlink():
+    sys.exit('Expected dash installed and /usr/bin/sh to be a symlink; resolve manually.')
+for group in lines('groups.txt'):
+    if subprocess.run(['getent', 'group', group], stdout=subprocess.DEVNULL).returncode:
+        run('groupadd', '--system', group)
+run('usermod', '-aG', ','.join(lines('groups.txt')), 'bren')
+for name, option in [('subuid', '--add-subuids'), ('subgid', '--add-subgids')]:
+    if 'bren:100000:65536' not in (Path('/etc') / name).read_text().splitlines():
+        run('usermod', option, '100000-165535', 'bren')
+for row in lines('capabilities.tsv'):
+    path, caps = row.split('\t')
+    if output('getcap', path) != f'{path} {caps}':
+        run('setcap', caps, path)
+if os.readlink('/usr/bin/sh') != 'dash':
+    saved = Path('/var/lib/artix-bootstrap/sh.before-bootstrap')
+    saved.parent.mkdir(parents=True, exist_ok=True)
+    if not saved.exists() and not saved.is_symlink():
+        shutil.copy2('/usr/bin/sh', saved, follow_symlinks=False)
+    run('ln', '-sfn', 'dash', '/usr/bin/sh')
+run('ln', '-sfn', '/usr/share/zoneinfo/America/New_York', '/etc/localtime')
+run('locale-gen')
+print('Permissions restored. Log out and back in to obtain supplemental groups.')

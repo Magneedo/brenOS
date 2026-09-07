@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+"""Build and inspect a Booster image before replacing any files on the ESP."""
+import argparse
+import datetime
+import os
+from pathlib import Path
+import shutil
+import sys
+import tempfile
+from common import output, run
+
+p = argparse.ArgumentParser(description=__doc__)
+p.add_argument('--apply', action='store_true')
+a = p.parse_args()
+print('Plan: require mounted FAT ESP at /boot; build Booster for the installed linux kernel,')
+print('inspect image, back up old kernel/image under /var/lib/artix-bootstrap/boot, then install both.')
+if not a.apply:
+    sys.exit(0)
+if os.geteuid() != 0:
+    sys.exit('Use doas for --apply.')
+if output('findmnt', '-n', '-o', 'FSTYPE', '--mountpoint', '/boot') != 'vfat':
+    sys.exit('/boot must be the mounted FAT ESP. Refusing to write into the root filesystem.')
+if 'rw' not in output('findmnt', '-n', '-o', 'OPTIONS', '--mountpoint', '/boot').split(','):
+    sys.exit('/boot is not mounted read-write.')
+if not Path('/boot/intel-ucode.img').is_file():
+    sys.exit('Missing /boot/intel-ucode.img; install intel-ucode with /boot mounted first.')
+kernels = [p.parent for p in Path('/usr/lib/modules').glob('*/pkgbase')
+           if p.read_text().strip() == 'linux']
+if len(kernels) != 1 or not (kernels[0] / 'vmlinuz').is_file():
+    sys.exit('Expected one installed linux pkgbase; inspect /usr/lib/modules manually.')
+kernel = kernels[0]
+if output('pacman', '-Qqo', str(kernel / 'pkgbase')) != 'linux':
+    sys.exit('Kernel metadata is not owned by linux.')
+stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
+backup = Path('/var/lib/artix-bootstrap/boot') / stamp
+with tempfile.TemporaryDirectory(prefix='artix-initramfs-') as tmp:
+    image = Path(tmp) / 'booster-linux.img'
+    run('booster', 'build', '--kernel-version', kernel.name, str(image))
+    listing = output('booster', 'ls', str(image))
+    if not any(line.lstrip('/').split()[0:1] == ['init'] for line in listing.splitlines()):
+        # Booster versions differ in ls formatting; require an init path token.
+        if not any(token.rstrip('/') in ('init', '/init') for token in listing.split()):
+            sys.exit('Generated image listing has no init; original boot files retained.')
+    staged = []
+    try:
+        for name, source in [('vmlinuz-linux', kernel / 'vmlinuz'), ('booster-linux.img', image)]:
+            old = Path('/boot') / name
+            if old.exists():
+                backup.mkdir(parents=True, exist_ok=True, mode=0o700)
+                shutil.copy2(old, backup / name)
+            fd, temporary = tempfile.mkstemp(prefix='.bootstrap-', dir='/boot')
+            os.close(fd)
+            staged.append((Path(temporary), old))
+            shutil.copyfile(source, temporary)
+            os.chmod(temporary, 0o644)
+        # Both files are fully copied onto the ESP before either live name changes.
+        for temporary, destination in staged:
+            os.replace(temporary, destination)
+        os.sync()
+    finally:
+        for temporary, _ in staged:
+            temporary.unlink(missing_ok=True)
+print(f'Boot files installed for {kernel.name}. Previous files, if any: {backup}')
+print('EFI entries were not changed. Follow docs/boot.md before rebooting.')

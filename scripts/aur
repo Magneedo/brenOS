@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+"""Restore the foreign package manifest, keeping yay's recipe review prompts."""
+import argparse
+import os
+import shlex
+import shutil
+import sys
+from common import REPO, lines, run
+
+p = argparse.ArgumentParser(description=__doc__)
+p.add_argument('--apply', action='store_true')
+a = p.parse_args()
+config = REPO / '.work/makepkg.conf'
+command = ['yay', '--sudo', 'doas', '--makepkgconf', str(config),
+           '--diffmenu', '--editmenu', '-S', '--needed', '--', *lines('packages-aur.txt')]
+print(shlex.join(command), flush=True)
+if a.apply:
+    if os.geteuid() == 0:
+        sys.exit('Run AUR builds as bren, never as root.')
+    if not shutil.which('yay'):
+        sys.exit('Bootstrap yay with the reviewed makepkg procedure in docs/packages.md first.')
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text('source /etc/makepkg.conf\nPACMAN_AUTH=(doas)\n')
+    run(*command)
