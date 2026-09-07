@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
+repo=$PWD
+[[ $# == 0 ]] || { echo 'Usage: scripts/desktop (builds and stages; does not install)' >&2; exit 2; }
+[[ $EUID != 0 ]] || { echo 'Build as your desktop user.' >&2; exit 1; }
+pkg-config --exists wlroots-0.19 wayland-server wayland-client wayland-cursor wayland-protocols xkbcommon libinput xcb xcb-icccm fcft pixman-1
+for name in dwl dwlb; do
+    source=$repo/.work/sources/$name
+    [[ -d $source ]] || { echo 'Run scripts/sources first.' >&2; exit 1; }
+    (cd "$source"; sha256sum --quiet -c .source-files.sha256)
+done
+mkdir -p .work/build
+# Build from fresh copies so previous object files cannot hide source changes.
+build=$(mktemp -d "$repo/.work/build/desktop-XXXXXX")
+cp -a .work/sources/dwl/. "$build/dwl"
+cp -a .work/sources/dwlb/. "$build/dwlb"
+make -C "$build/dwl" -j "$(getconf _NPROCESSORS_ONLN)"
+make -C "$build/dwl" check
+make -C "$build/dwlb" -j "$(getconf _NPROCESSORS_ONLN)"
+mkdir -p "$build/stage/usr/local/bin"
+install -m755 "$build/dwl/dwl" "$build/stage/usr/local/bin/dwl"
+install -m755 "$build/dwlb/dwlb" "$build/stage/usr/local/bin/dwlb"
+# These installed artifacts existed on the reference even though its current
+# dwl Makefile only installs the binary.
+install -Dm644 "$build/dwl/dwl.desktop" "$build/stage/usr/local/share/wayland-sessions/dwl.desktop"
+install -Dm644 "$build/dwl/dwl.1" "$build/stage/usr/local/share/man/man1/dwl.1"
+if [[ -e .work/desktop-stage && ! -L .work/desktop-stage ]]; then
+    echo 'Refusing to replace non-symlink .work/desktop-stage' >&2; exit 1
+fi
+ln -sfn -- "$build/stage" .work/desktop-stage
+echo "Built and tested. Staged installation: $build/stage"
+echo 'Install with the commands in docs/install.md; no installed binaries were changed.'

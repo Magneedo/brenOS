@@ -1,5 +1,4 @@
-.work/
-local/
+/.work/
+/local/
 __pycache__/
 *.pyc
-

@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""Enable the manifest with standard runit links; existing services are not restarted."""
+import argparse
+import os
+from pathlib import Path
+import sys
+from common import selected, run
+
+p = argparse.ArgumentParser(description=__doc__)
+p.add_argument('--profile', choices=['portable', 'framework'], default='portable')
+p.add_argument('--apply', action='store_true')
+a = p.parse_args()
+names = selected('services', a.profile)
+base = Path('/etc/runit/runsvdir/default')
+for name in names:
+    print(f'{base / name} -> /etc/runit/sv/{name}')
+if not a.apply:
+    sys.exit(0)
+if os.geteuid() != 0:
+    sys.exit('Use doas for --apply.')
+# Complete preflight before enabling anything. Linking can start services now.
+current = Path('/etc/runit/runsvdir/current')
+if (current.exists() or current.is_symlink()) and current.resolve() != base:
+    sys.exit('Current runlevel is not default; switch it manually after review.')
+for name in names:
+    definition = Path('/etc/runit/sv') / name
+    link = base / name
+    if not os.access(definition / 'run', os.X_OK):
+        sys.exit(f'Missing executable {definition / "run"}; restore packages/configuration first.')
+    if (definition / 'down').exists():
+        sys.exit(f'{definition}/down exists; review and remove it manually to enable the service.')
+    if (link.exists() or link.is_symlink()) and (not link.is_symlink() or link.resolve() != definition):
+        sys.exit(f'Conflicting service link: {link}')
+if a.profile == 'framework':
+    config = Path('/etc/wpa_supplicant/home.conf')
+    if not config.is_file() or config.stat().st_uid != 0 or config.stat().st_mode & 0o077:
+        sys.exit('Supply root-owned, mode 0600 /etc/wpa_supplicant/home.conf first; see docs/secrets.md.')
+    if not Path('/sys/class/net/wlan0').exists():
+        sys.exit('wlan0 is absent. Adapt the Framework network profile before enabling Wi-Fi.')
+if not Path('/opt/Mullvad VPN/resources').is_dir():
+    sys.exit('Missing Mullvad resources; restore its AUR package first.')
+run('ssh-keygen', '-A')
+run('/usr/bin/sshd', '-t')
+for directory in ('/var/log/mullvad-vpn', '/var/log/bluetoothd'):
+    Path(directory).mkdir(mode=0o755, parents=True, exist_ok=True)
+base.mkdir(parents=True, exist_ok=True)
+if not current.exists() and not current.is_symlink():
+    current.symlink_to('default')
+for name in names:
+    link = base / name
+    if not link.is_symlink():
+        link.symlink_to(Path('/etc/runit/sv') / name)
+print('Enabled. Existing services were left running with their existing process state.')
+print('Check: doas sv status /run/runit/service/* . Newly restored configuration takes effect on the next start.')

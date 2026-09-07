@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
+repo=$PWD
+local_sources=
+if [[ $# -gt 0 ]]; then
+    [[ $# == 2 && $1 == --local ]] || { echo 'Usage: scripts/sources [--local EXISTING_REPOS_DIRECTORY]' >&2; exit 2; }
+    local_sources=$2
+fi
+[[ $EUID != 0 ]] || { echo 'Prepare source repositories as your desktop user.' >&2; exit 1; }
+mkdir -p .work/repos .work/sources
+while IFS=$'\t' read -r name url revision; do
+    [[ -n $name && $name != \#* ]] || continue
+    if [[ -n $local_sources ]]; then
+        source_repo=$local_sources/$name
+        git -C "$source_repo" cat-file -e "$revision^{commit}"
+    else
+        source_repo=$repo/.work/repos/$name
+        if [[ ! -d $source_repo ]]; then
+            git clone --no-checkout -- "$url" "$source_repo"
+        fi
+        [[ $(git -C "$source_repo" remote get-url origin) == "$url" ]] || { echo "Wrong origin: $source_repo" >&2; exit 1; }
+        if ! git -C "$source_repo" cat-file -e "$revision^{commit}" 2>/dev/null; then
+            git -C "$source_repo" fetch origin "$revision"
+        fi
+    fi
+    patch_file=$repo/patches/$name.patch
+    patch_id=none
+    if [[ -f $patch_file ]]; then
+        read -r patch_id _ < <(sha256sum "$patch_file")
+    fi
+    version=$name-$revision-$patch_id
+    prepared=$repo/.work/sources/$version
+    if [[ -d $prepared ]]; then
+        (cd "$prepared"; sha256sum --quiet -c .source-files.sha256)
+    else
+        scratch=$(mktemp -d "$repo/.work/sources/.prepare-XXXXXX")
+        trap 'rm -rf -- "$scratch"' EXIT
+        git -C "$source_repo" archive "$revision" | tar -x -C "$scratch"
+        if [[ -f $patch_file ]]; then
+            (cd "$scratch"; git apply --check "$patch_file"; git apply "$patch_file")
+        fi
+        (cd "$scratch"; find . -type f ! -name .source-files.sha256 -print0 | sort -z | xargs -0 sha256sum > .source-files.sha256)
+        mv -- "$scratch" "$prepared"
+        trap - EXIT
+    fi
+    if [[ -e .work/sources/$name && ! -L .work/sources/$name ]]; then
+        echo "Refusing to replace non-symlink .work/sources/$name" >&2; exit 1
+    fi
+    ln -sfn -- "$version" ".work/sources/$name"
+    echo "Prepared $name at $revision + reviewed patch ($patch_id)"
+done < manifests/repositories.tsv
