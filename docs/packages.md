@@ -28,21 +28,20 @@ workflows. Do not run makepkg as root.
 
 ```sh
 cd ~/Projects/artix-bootstrap
-mkdir -p .work/aur
-if [ ! -d .work/aur/yay ]; then
-    git clone https://aur.archlinux.org/yay.git .work/aur/yay
-fi
-git -C .work/aur/yay checkout --detach cb43f84828ab4f9700f7c6f9c6d7a923d4cfaff0
-less .work/aur/yay/PKGBUILD
-less .work/aur/yay/.SRCINFO
-printf 'source /etc/makepkg.conf\nPACMAN_AUTH=(doas)\n' > .work/makepkg.conf
-bootstrap_repo=$PWD
-cd .work/aur/yay
-makepkg --config "$bootstrap_repo/.work/makepkg.conf" -si --needed
-cd "$bootstrap_repo"
+scripts/yay
+scripts/yay --apply
 scripts/aur
 scripts/aur --apply
 ```
+
+`scripts/yay` moves the previously manual helper bootstrap into one small stage.
+It reuses an existing yay executable; otherwise it clones the AUR recipe into
+`.work/aur/yay`, verifies the origin, selects the audited commit recorded in the
+script, and displays every tracked recipe input. Type `build` only after review.
+It refuses tracked local recipe edits and symlink build paths. Building uses
+`makepkg -si --needed` as your user; signature/provider/dependency errors stop the
+stage for review. No keys are imported automatically and no checks are bypassed.
+The guided installer calls this stage before `scripts/aur`.
 
 makepkg's authentication command is explicitly set to doas; no sudo installation
 is needed. The Artix base-devel meta-package would pull in sudo, so the manifest

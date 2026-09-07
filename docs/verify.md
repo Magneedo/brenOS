@@ -7,6 +7,7 @@ After preparing sources and building/staging the desktop:
 ```sh
 scripts/check
 python3 tests/rehearsal.py
+python3 tests/installer.py
 scripts/files --profile framework --scope all --root .work/rehearsal
 scripts/files --profile framework --scope all --root .work/rehearsal --apply
 scripts/files --profile framework --scope all --root .work/rehearsal --apply
@@ -18,6 +19,11 @@ allowlisted files into that directory. It does not install packages, assign real
 system ownership, run services or touch firmware. The second apply should report
 zero changes. Tests cover no-write previews, conflict preflight, backed-up
 replacement, symlink escape refusal, boot-input validation and default previews.
+Installer tests use fake stage commands and a temporary local Git recipe with a
+stubbed makepkg call. They check stop/resume behavior, privilege boundaries,
+manual boot gates, failure propagation and the fresh yay bootstrap path without
+installing packages or touching the running system. The real top-level preview is
+`./install --profile framework --dry-run`.
 
 `scripts/check` ensures all 129 intended explicit packages have a manifest, every local
 file source is tracked, destinations are unique, source inputs exist, scripts

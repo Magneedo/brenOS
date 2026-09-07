@@ -6,6 +6,19 @@ Intel i5-1240P**, x86_64, with `/home/bren` and UID 1000.
 
 Start with [the installation sequence](docs/install.md). It links the disk,
 package, boot, secret and verification instructions at the point they are needed.
+After its base prerequisites, GitHub authentication and clone, run as bren from
+a local text console such as tty2:
+
+```sh
+./install --profile framework
+```
+
+The guided installer calls the existing stages, shows previews and pauses for
+policy/file review, private inputs, group activation and boot/EFI decisions.
+Use `./install --profile framework --dry-run` to print the whole plan without
+running commands. At a pause or failure it prints a command to resume with
+`--from STAGE`; no hidden completion files skip work automatically.
+
 Read [the reference audit](docs/audit.md) and [validation results](docs/validation.md)
 for coverage and test limits. The authenticated policy audit is complete;
 physical restore/boot tests have not been performed.
@@ -49,15 +62,20 @@ account rather than relying on a hidden username substitution.
 
 | Path | Purpose |
 | --- | --- |
+| `install` | Interactive orchestration, read-only plan and explicit stage resume |
 | `manifests/` | Packages, services, groups, capabilities, directory permissions, Wi-Fi methods, pinned repositories, file allowlist |
 | `files/portable`, `files/framework` | Missing reviewed configuration and scripts |
 | `patches/` | Reviewed live/uncommitted differences from the pinned repositories |
 | `templates/` | Pacman configuration and secret-free examples |
 | `scripts/` | Independent restoration, inspection and verification stages |
 | `tests/rehearsal.py` | Temporary-root deployment and failure/retry tests |
+| `tests/installer.py` | Installer stop/resume, privilege boundaries and offline helper-bootstrap tests |
 | `.work/`, `local/` | Ignored builds, rehearsals, local reports and machine inputs |
 
-Mutating system scripts preview by default and require `--apply` to write.
+Individual mutating stage scripts preview by default and require `--apply` to write.
+The top-level `install` is interactive: it confirms installation intent, calls
+those previews and explicitly applies the reviewed stages. It has no unattended
+yes/force mode, and never supplies `--noconfirm` to package tools.
 `scripts/sources` and `scripts/desktop` only prepare/build inside `.work/`.
 `scripts/files` refuses conflicting files unless `--replace` is given; replaced
 files are backed up. No script formats disks, deletes snapshots, creates a VM,
@@ -69,7 +87,8 @@ belong in a separate backup. See [manual inputs](docs/secrets.md). Never use
 `git add -f` on `local/` or `.work/`.
 
 To maintain this capture: edit the specific manifest/file, prepare sources and
-build the desktop, run `scripts/check`, `python3 tests/rehearsal.py`, and the
+build the desktop, run `scripts/check`, `python3 tests/rehearsal.py`,
+`python3 tests/installer.py`, and the
 read-only `scripts/verify --profile framework`, then review and commit. Update a
 repository pin and its patch together. Once a patch is incorporated into its
 original repository, advance the pin and remove the redundant patch.

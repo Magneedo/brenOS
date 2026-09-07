@@ -56,6 +56,78 @@ gh repo clone Magneedo/artix-bootstrap ~/Projects/artix-bootstrap
 cd ~/Projects/artix-bootstrap
 ```
 
+## Guided installation
+
+From the cloned repository on the freshly installed target, as bren on tty2:
+
+```sh
+./install --profile framework
+```
+
+The prerequisites above still apply, including Python, doas, the bren account,
+working Internet, a correct clock and the intended disk layout. The orchestrator
+requires an interactive terminal and refuses installation from an active graphical
+session or SSH. Framework package upgrades require a FAT ESP mounted read-write
+at `/boot`. Run the installer as your ordinary user; it invokes doas for system
+operations and keeps source/AUR/desktop builds and home deployment unprivileged.
+
+It asks for installation intent once, preserves Pacman/makepkg/yay prompts, and
+pauses for the reviews below. Type the requested word to continue, or press Enter
+to stop. Supply credentials using private editors or the application's own login
+commands in another console, never in an installer confirmation prompt.
+
+| Stage | Actions and review boundaries |
+| --- | --- |
+| `repositories` | Install Artix compatibility support, show the Pacman diff, require `replace` before installing the policy with its original backup; preserve mirror files |
+| `packages` | Preview and apply the existing native package stage, including a normal full upgrade |
+| `aur` | Bootstrap the pinned yay recipe if needed after explicit review, then run the existing AUR stage with its diff/edit menus |
+| `desktop` | Prepare the pinned repositories, build/test dwl and dwlb, and check manifest/source inputs |
+| `configuration` | Preview home/system files, require `replace` for backed-up replacements, then apply permissions and check doas policy |
+| `services` | Stop for a new login if group changes are not active; pause for private inputs and review before enabling the listed services |
+| `boot` | Pause for manually reviewed UUIDs/fstab/layout, run the existing initramfs stage with backups, then pause for explicit EFI decisions |
+| `verify` | Run the protected verifier and report physical acceptance tests; retain its failure/incomplete exit status |
+
+Inspect the sequence without running commands or writing any files:
+
+```sh
+./install --profile framework --dry-run
+```
+
+A pause or error names the stage and prints a resume command. For example, after
+applying configuration, log out and back into tty2 to activate new groups, then:
+
+```sh
+cd ~/Projects/artix-bootstrap
+./install --profile framework --from services
+```
+
+There is no saved completion state. `--from` deliberately skips earlier stages;
+use it only after those stages succeeded and keep the same profile. Stage-level
+checks still run, so absent packages/sources/private inputs or conflicting files
+fail visibly. Resuming at `configuration` repeats both file previews and the
+replacement review. Resuming at `boot` repeats its reviews and initramfs build;
+after completing that stage's manual EFI work, `--from verify` is sufficient.
+
+Exit status 3 means paused for review/manual work, 1 means a stage/preflight failed
+(or verification found drift), 2 from verification means incomplete checks, and
+130 means interrupted. The failing command is shown; inspect package transactions
+or other partial work before retrying. No whole-install rollback is implied:
+existing file/image backups and each stage's normal rerun behavior are preserved.
+
+The first verification runs before reboot; session processes and the running
+kernel's old arguments can still differ. Review every finding and finish the
+boot guide, then reboot deliberately and run from the restored desktop:
+
+```sh
+./install --profile framework --from verify
+```
+
+Follow [verify.md](verify.md) for physical acceptance tests. Disk formatting,
+partitioning, fstab/EFI decisions, reboot and suspend/hibernate testing remain
+manual. `portable` uses the same sequence but leaves the hardware-specific
+initramfs/boot setup to you. The numbered sections below remain the full review
+instructions and standalone commands for each stage.
+
 ## 2. Configure repositories and restore packages
 
 Install Artix's compatibility package while using the installation's working
@@ -174,6 +246,7 @@ it is not a side effect of package or file restoration.
 ```sh
 scripts/check
 python3 tests/rehearsal.py
+python3 tests/installer.py
 doas scripts/verify --profile framework
 ```
 

@@ -18,7 +18,7 @@ if a.apply:
     if os.geteuid() == 0:
         sys.exit('Run AUR builds as bren, never as root.')
     if not shutil.which('yay'):
-        sys.exit('Bootstrap yay with the reviewed makepkg procedure in docs/packages.md first.')
+        sys.exit('Run scripts/yay --apply first; see docs/packages.md for recipe review.')
     config.parent.mkdir(parents=True, exist_ok=True)
     config.write_text('source /etc/makepkg.conf\nPACMAN_AUTH=(doas)\n')
     run(*command)
