@@ -63,7 +63,7 @@ for _, origin, relative, destination, mode in file_rows(a.profile):
 if root == Path('/'):
     installed = command('pacman', '-Qq')
     expected = set(selected('packages', a.profile) + lines('packages-runtime.txt')
-                   + lines('packages-aur.txt') + lines('packages-local.txt'))
+                   + lines('packages-aur.txt'))
     if installed is not None:
         missing = sorted(expected - set(installed.splitlines()))
         check(not missing, 'packages', 'Missing: ' + ', '.join(missing) if missing else f'All {len(expected)} required packages installed')
@@ -103,7 +103,7 @@ if root == Path('/'):
                   'Expected ' + owner + ':' + group + ' ' + mode)
         except (OSError, KeyError, ValueError) as e:
             record('FAIL', 'directory:' + directory, str(e))
-    for path in ('/usr/bin/doas', '/usr/bin/mullvad-exclude'):
+    for path in ('/usr/bin/doas',):
         f = Path(path)
         check(f.is_file() and f.stat().st_mode & 0o4000 and f.stat().st_uid == 0, path + ':setuid', 'Root-owned setuid executable')
     names = selected('services', a.profile)

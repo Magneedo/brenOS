@@ -37,12 +37,10 @@ if a.profile == 'framework':
         sys.exit('Supply root-owned, mode 0600 /etc/wpa_supplicant/home.conf first; see docs/secrets.md.')
     if not Path('/sys/class/net/wlan0').exists():
         sys.exit('wlan0 is absent. Adapt the Framework network profile before enabling Wi-Fi.')
-if not Path('/opt/Mullvad VPN/resources').is_dir():
-    sys.exit('Missing Mullvad resources; restore its AUR package first.')
 run('ssh-keygen', '-A')
 run('/usr/bin/sshd', '-t')
-for directory in ('/var/log/mullvad-vpn', '/var/log/bluetoothd'):
-    Path(directory).mkdir(mode=0o755, parents=True, exist_ok=True)
+if a.profile == 'framework':
+    Path('/var/log/bluetoothd').mkdir(mode=0o755, parents=True, exist_ok=True)
 base.mkdir(parents=True, exist_ok=True)
 if not current.exists() and not current.is_symlink():
     current.symlink_to('default')

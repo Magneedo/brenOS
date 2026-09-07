@@ -6,17 +6,19 @@ installed configuration, packages, services, boot entries and storage were not
 modified. Builds, temporary roots, downloads and reports stayed in the new
 repository's ignored work area or temporary directories.
 
-## Completed
+## Original capture validation
+
+These results describe the initial capture before the user removed the VPN from
+restore scope. Current manifests select 129 explicit packages, ten services and
+66 files; the original validation counts are retained as historical evidence.
 
 - Verified the published GitHub main commits match the three recorded pins.
   Also fetched all three sources through the normal fresh GitHub download path,
   independently of the existing local repositories.
   Original worktrees retained their initial state: deleted Windows file in
   dotfiles, modified dwl config.h, clean dwlb. No reset/commit/push was made there.
-- Captured every explicit installed package; all 122 native names resolve in
-  the current Pacman sync databases. AUR RPC resolves seven names. Recovered the
-  missing Mullvad package's original 2025.14 recipe from its Git history, with
-  its original install script and license.
+- Captured the explicit package inventory; all 122 native names resolve in
+  the reference Pacman sync databases. AUR RPC resolves the seven retained names.
 - Ran Pacman's dependency resolver against an empty local package database and
   the reference sync databases, requesting the native manifests plus the foreign
   packages' declared native runtime dependencies. The 755-package solution
@@ -78,8 +80,8 @@ physical behavior still require the acceptance tests below.
   was performed. Previous dotfiles audit notes documented successful hibernation;
   a newly restored target still needs the physical tests in verify.md.
 - No live package transaction or AUR build toolchain installation was performed.
-  The full recovered Mullvad Rust/Go build and the other AUR source builds were
-  not rerun. Their dependencies and restoration commands are documented; a
+  The AUR source builds were not rerun. Their dependencies and restoration
+  commands are documented; a
   staging file test does not prove their future upstream availability.
 - The safe Booster install stage was syntax checked and its input workflow
   reviewed against the installed tool/hook implementations. Image generation and

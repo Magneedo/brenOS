@@ -25,9 +25,9 @@ the working live versions without resurrecting the deleted, older dotfiles copy.
 
 ## What is reproduced
 
-All 130 explicit packages are accounted for: 122 native packages, seven available
-AUR packages and one recovered local Mullvad CLI recipe. Direct runtime/build
-dependencies are listed separately. Eleven enabled runit services, system policy,
+The restore includes 129 explicit packages: 122 native packages and seven AUR
+packages. Direct runtime/build dependencies are listed separately. Ten runit
+services, system policy,
 desktop builds, groups/capabilities, networking, audio startup and Framework boot
 configuration are covered. `manifests/files.tsv` is the complete deployment
 allowlist; no directory-wide home or `/etc` copy is used.
@@ -52,7 +52,6 @@ account rather than relying on a hidden username substitution.
 | `manifests/` | Packages, services, groups, capabilities, directory permissions, Wi-Fi methods, pinned repositories, file allowlist |
 | `files/portable`, `files/framework` | Missing reviewed configuration and scripts |
 | `patches/` | Reviewed live/uncommitted differences from the pinned repositories |
-| `packages/mullvad-vpn-cli/` | Recovered original AUR source recipe and license |
 | `templates/` | Pacman configuration and secret-free examples |
 | `scripts/` | Independent restoration, inspection and verification stages |
 | `tests/rehearsal.py` | Temporary-root deployment and failure/retry tests |

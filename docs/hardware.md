@@ -11,7 +11,7 @@ installation uses framework consistently for packages, files, services and check
 | User scripts, application packages, power wrappers | Fingerprint PAM hooks and new local fingerprint enrollment |
 | User bren/UID 1000, groups, limits, capabilities | i915/NVMe/Btrfs Booster image and dedicated swap resume |
 | DHCP preference for Ethernet over Wi-Fi, named profile workflow | wlan0 check/service, new wireless credentials, device-name adaptations |
-| Chrony, SSH, Mullvad service definitions | Framework USB power driver blacklist and webcam access rule |
+| Chrony and SSH service definitions | Framework USB power driver blacklist and webcam access rule |
 | Locale en_US.UTF-8, America/New_York, hostname artix | Disk UUIDs, ESP partition number, firmware boot entry number |
 | Normal package/mirror mechanisms | VM CPU affinity, laptop-sized OBS recording defaults |
 
@@ -32,7 +32,7 @@ Captured hardware policies, without new tuning:
   The reference seat socket is root:seat 0770, KVM is root:kvm 0666 and the
   render device is root:render 0666 through normal device provisioning.
 - btop has `cap_dac_read_search,cap_perfmon=ep`; newuidmap/newgidmap have their
-  setuid/setgid capabilities. doas and mullvad-exclude are setuid root; swaylock
+  setuid/setgid capabilities. doas is setuid root; swaylock
   uses PAM without a setuid bit. These are verified, not generalized into blanket
   capabilities for arbitrary binaries.
 - `/usr/bin/sh` selects dash. bren's login shell remains Bash. The PAM resource

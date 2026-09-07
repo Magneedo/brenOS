@@ -23,7 +23,7 @@ for _, origin, relative, destination, mode in file_rows('framework'):
     if not re.fullmatch(r'0[0-7]{3}', mode):
         errors.append('Invalid file mode: ' + mode)
 snapshot = set((REPO/'docs/packages-explicit.txt').read_text().splitlines())
-manifest = set(selected('packages', 'framework') + lines('packages-aur.txt') + lines('packages-local.txt'))
+manifest = set(selected('packages', 'framework') + lines('packages-aur.txt'))
 if snapshot != manifest:
     errors.append('Explicit package snapshot and restoration manifests differ: ' + ', '.join(sorted(snapshot ^ manifest)))
 if not set(lines('policy-packages.txt')) <= manifest | set(lines('packages-runtime.txt')):
@@ -60,7 +60,7 @@ for relative in sorted(tracked):
             r = subprocess.run(['bash', '-n', str(path)], capture_output=True, text=True)
             if r.returncode:
                 errors.append(r.stderr)
-    if path.name in ('PKGBUILD', 'mullvad-vpn.install'):
+    if path.name == 'PKGBUILD':
         r = subprocess.run(['bash', '-n', str(path)], capture_output=True, text=True)
         if r.returncode:
             errors.append(r.stderr)

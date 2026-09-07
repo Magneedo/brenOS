@@ -3,7 +3,6 @@ agetty-tty2
 chrony
 dbus
 dhcpcd
-mullvad
 seatd
 sshd
 udevd

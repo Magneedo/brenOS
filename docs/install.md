@@ -86,7 +86,7 @@ not hidden inside a later stage. The saved original is not overwritten on reruns
 Review `packages.md` for keyring recovery and package-movement handling.
 
 Next follow [packages.md](packages.md) to bootstrap yay, restore the seven AUR
-packages, and build/install the recovered Mullvad CLI package. Return here once
+packages. Return here once
 all package commands succeed. No service is enabled by these bootstrap scripts
 at this stage. Upstream package install hooks retain their normal behavior.
 
@@ -152,15 +152,15 @@ doas sv status /run/runit/service/*
 ```
 
 The service stage verifies definitions, current runlevel, private Wi-Fi file
-permissions, `wlan0`, Mullvad resources and SSH configuration before linking
+permissions, `wlan0` and SSH configuration before linking
 services. It creates missing host keys with `ssh-keygen -A`; keys never enter Git.
 Enabling a link in the current default runlevel can start that service immediately.
 Existing services are not restarted by the script. If existing processes predate
 the restored configuration, restart them deliberately from a local console or
 let the next boot start them. Restarting networking can interrupt the connection.
 
-Use [networking/audio instructions](network-audio.md) to log into Mullvad,
-configure its non-secret preferences, pair Bluetooth devices, and check audio.
+Use [networking/audio instructions](network-audio.md) to check networking,
+pair Bluetooth devices, and check audio.
 
 ## 6. Complete boot and hibernation configuration
 

@@ -41,8 +41,6 @@ portable	bootstrap	files/portable/etc/security/limits.conf	etc/security/limits.c
 portable	bootstrap	files/portable/etc/locale.conf	etc/locale.conf	0644
 portable	bootstrap	files/portable/etc/hostname	etc/hostname	0644
 portable	bootstrap	files/portable/etc/hosts	etc/hosts	0644
-portable	bootstrap	files/portable/etc/runit/sv/mullvad/run	etc/runit/sv/mullvad/run	0755
-portable	bootstrap	files/portable/etc/runit/sv/mullvad/log/run	etc/runit/sv/mullvad/log/run	0755
 portable	bootstrap	files/portable/etc/runit/sv/sshd/run	etc/runit/sv/sshd/run	0755
 portable	bootstrap	files/portable/usr/local/bin/lock	usr/local/bin/lock	0755
 portable	bootstrap	files/portable/usr/local/bin/reboot	usr/local/bin/reboot	0755
