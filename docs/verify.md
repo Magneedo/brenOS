@@ -8,6 +8,7 @@ After preparing sources and building/staging the desktop:
 scripts/check
 python3 tests/rehearsal.py
 python3 tests/installer.py
+python3 tests/bootstrap.py
 scripts/files --profile framework --scope all --root .work/rehearsal
 scripts/files --profile framework --scope all --root .work/rehearsal --apply
 scripts/files --profile framework --scope all --root .work/rehearsal --apply
@@ -23,7 +24,10 @@ Installer tests use fake stage commands and a temporary local Git recipe with a
 stubbed makepkg call. They check stop/resume behavior, privilege boundaries,
 manual boot gates, failure propagation and the fresh yay bootstrap path without
 installing packages or touching the running system. The real top-level preview is
-`./install --profile framework --dry-run`.
+`./install --profile framework --dry-run`. Phase-0 tests also cover missing tools,
+wrong OS/init/account, ESP checks, policy creation/refusal, root boundaries,
+reruns and handoff using fake commands and temporary paths.
+`./bootstrap --dry-run` needs no Python and changes nothing.
 
 `scripts/check` ensures all 129 intended explicit packages have a manifest, every local
 file source is tracked, destinations are unique, source inputs exist, scripts

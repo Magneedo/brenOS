@@ -50,13 +50,13 @@ for relative in sorted(tracked):
     text = data.decode()
     if any(p.search(text) for p in patterns):
         errors.append('Possible credential: ' + relative)
-    if relative == 'install' or relative.startswith(('scripts/', 'tests/')):
+    if relative in ('install', 'bootstrap') or relative.startswith(('scripts/', 'tests/')):
         if relative.endswith('.py') or text.startswith('#!/usr/bin/env python3'):
             try:
                 ast.parse(text, filename=relative)
             except SyntaxError as e:
                 errors.append(str(e))
-        elif text.startswith('#!/usr/bin/env bash'):
+        elif text.startswith(('#!/usr/bin/env bash', '#!/bin/bash')):
             r = subprocess.run(['bash', '-n', str(path)], capture_output=True, text=True)
             if r.returncode:
                 errors.append(r.stderr)

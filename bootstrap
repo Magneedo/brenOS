@@ -1,0 +1,131 @@
+#!/bin/bash -p
+# Bash is in Artix base; Python and doas need not be installed yet.
+set -Eeuo pipefail
+export PATH=/usr/bin:/bin
+unset CDPATH ENV BASH_ENV
+
+stop() { printf 'bootstrap: %s\nResume after resolving this: ./bootstrap %s\n' "$1" "${resume_args:-}" >&2; exit 1; }
+
+check_platform() {
+    local root=${1:-/} line artix=no running_init
+    while IFS= read -r line; do
+        case "$line" in ID=artix|ID=\"artix\"|ID=\'artix\') artix=yes ;; esac
+    done < "$root/etc/os-release"
+    [[ $artix == yes ]] || stop 'Expected Artix Linux; no changes made.'
+    # /proc/1/exe needs ptrace permission on a normal host; comm is readable.
+    read -r running_init < "$root/proc/1/comm"
+    [[ $(readlink -f "$root/sbin/init") == */runit-init &&
+       $running_init == runit ]] || stop 'Boot the installed runit system locally (not a chroot).'
+    [[ $(uname -m) == x86_64 ]] || stop 'Expected x86_64 Artix.'
+}
+
+check_account() {
+    local real_uid=$1 effective_uid=$2 primary_gid=$3 account groups name uid gid account_home shell
+    [[ $real_uid == 1000 && $effective_uid == 1000 && $primary_gid == 1000 ]] ||
+        stop 'Run as bren, UID/GID 1000, without su/doas around bootstrap. See README.md.'
+    account=$(getent passwd bren) || stop 'The bren account is missing; follow the account checks in docs/bootstrap.md before continuing.'
+    IFS=: read -r name _ uid gid _ account_home shell <<< "$account"
+    [[ $name == bren && $uid == 1000 && $gid == 1000 && $account_home == /home/bren &&
+       $shell == /bin/bash && ${HOME:-} == /home/bren ]] || stop 'Expected bren:1000:1000, /home/bren, /bin/bash. No account changes are automated.'
+    groups=" $(id -nG) "
+    [[ $groups == *' wheel '* ]] || stop 'The intended final policy requires wheel. Add bren to wheel as root, then log out and back in.'
+}
+
+check_checkout() {
+    local directory=$1 path owner mode
+    [[ $directory == /home/bren/* ]] || stop 'Keep this trusted checkout below /home/bren, not in a shared temporary directory.'
+    for path in "$directory" "$directory/bootstrap" "$directory/scripts" "$directory/scripts/phase0.py" "$directory/install"; do
+        [[ -e $path && ! -L $path ]] || stop "Missing or symlink checkout input: $path"
+        read -r owner mode < <(stat -c '%u %a' -- "$path")
+        [[ $owner == 0 || $owner == 1000 ]] && (( (8#$mode & 0022) == 0 )) ||
+            stop "Unsafe checkout input ownership/permissions: $path"
+    done
+    path=$directory
+    while :; do
+        read -r owner mode < <(stat -c '%u %a' -- "$path")
+        [[ $owner == 0 || $owner == 1000 ]] && (( (8#$mode & 0022) == 0 )) ||
+            stop "Unsafe checkout ownership/permissions: $path (must not be group/world writable)."
+        [[ $path != / ]] || break
+        path=$(dirname -- "$path")
+    done
+}
+
+check_boot() {
+    local root=${1:-/} device mount filesystem options rest found=0
+    [[ ! -L $root/boot ]] || stop '/boot must not be a symlink.'
+    # Read kernel mount data even if findmnt itself is the missing prerequisite.
+    while read -r device mount filesystem options rest; do
+        if [[ $mount == /boot ]]; then
+            [[ $filesystem == vfat && ,$options, == *,rw,* ]] || stop 'Mount the reviewed FAT ESP read-write at /boot; see docs/boot.md.'
+            found=$((found + 1))
+        fi
+    done < "$root/proc/mounts"
+    [[ $found == 1 ]] || stop 'Expected one FAT ESP mounted at /boot. Inspect lsblk -f and findmnt; if fstab is reviewed, use su -c "mount /boot". Never guess a device.'
+}
+
+missing_packages() {
+    local root=${1:-/} command package
+    for command in python3 git doas findmnt; do
+        case "$command" in python3) package=python ;; git) package=git ;; doas) package=opendoas ;; findmnt) package=util-linux ;; esac
+        if ! command -v "$command" >/dev/null; then printf '%s\n' "$package"; fi
+    done
+    if [[ ! -s $root/etc/ssl/certs/ca-certificates.crt ]]; then printf '%s\n' ca-certificates; fi
+}
+
+main() {
+    local profile=framework stage=repositories dry_run=no repo reply command
+    local -a missing
+    while (( $# )); do
+        case "$1" in
+            --profile) [[ $# -ge 2 ]] || stop '--profile needs a value.'; profile=$2; shift 2 ;;
+            --from) [[ $# -ge 2 ]] || stop '--from needs a stage.'; stage=$2; shift 2 ;;
+            --dry-run) dry_run=yes; shift ;;
+            --help|-h) printf 'Usage: ./bootstrap [--profile framework|portable] [--from STAGE] [--dry-run]\nRun as bren on a fresh local Artix/runit console. See README.md.\n'; return ;;
+            *) stop "Unknown argument: $1" ;;
+        esac
+    done
+    [[ $profile == framework || $profile == portable ]] || stop 'Invalid profile.'
+    case "$stage" in repositories|packages|aur|desktop|configuration|services|boot|verify) ;; *) stop 'Invalid stage.' ;; esac
+    resume_args="--profile $profile --from $stage"
+    if [[ $dry_run == yes ]]; then
+        printf '%s\n' 'Phase 0: validate Artix/runit, bren, local console and trusted checkout.'
+        [[ $profile != framework ]] || printf '%s\n' 'Require the reviewed FAT ESP mounted rw at /boot before any package transaction.'
+        printf '%s\n' 'Install only missing git/python/opendoas/util-linux/CA prerequisites via interactive su and pacman -Syu --needed.'
+        printf '%s\n' 'If doas policy is absent, review/install the exact pinned final policy via su; preserve existing policy.'
+        printf 'Then run as bren: ./install --profile %s --from %s\n' "$profile" "$stage"
+        return
+    fi
+    [[ -t 0 && -t 1 ]] || stop 'Use a local interactive text console, or --dry-run.'
+    [[ -z ${DISPLAY:-}${WAYLAND_DISPLAY:-}${SSH_CONNECTION:-}${SSH_TTY:-} ]] || stop 'Use a local text console such as tty2. After graphical login use ./install --profile framework --from verify.'
+    printf '%s\n' 'Checking Artix/runit and the bren account.'
+    check_platform
+    check_account "$UID" "$EUID" "$(id -g)"
+    [[ ! -L ${BASH_SOURCE[0]} ]] || stop 'Run the regular bootstrap file in the trusted checkout.'
+    repo=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+    check_checkout "$repo"
+    [[ $profile != framework ]] || check_boot
+    command -v pacman >/dev/null || stop 'Pacman is missing; repair the Artix base from installation media.'
+    mapfile -t missing < <(missing_packages)
+    if (( ${#missing[@]} )); then
+        command="/usr/bin/pacman -Syu --needed ${missing[*]}"
+        printf 'Missing launcher prerequisites: %s\nRoot access is required for: %s\n' "${missing[*]}" "$command"
+        command -v su >/dev/null || stop 'su is missing from this damaged base. Use the root console for the printed Pacman command with /boot mounted, then log back in as bren.'
+        printf '%s\n' 'This normal full upgrade can run kernel hooks. Keep /boot mounted; review Pacman prompts.'
+        read -r -p 'Type prepare to continue, or Enter to stop: ' reply
+        [[ $reply == prepare ]] || { printf 'Paused. Resume: ./bootstrap %s\n' "$resume_args"; return 3; }
+        # The elevated command contains only fixed package names, no repo/user paths.
+        su --login --shell /bin/bash --command "cd / && exec $command" root || stop 'Prerequisite transaction failed. Check networking, clock, mirrors/signatures and Pacman output; rerun bootstrap.'
+        mapfile -t missing < <(missing_packages)
+        (( ${#missing[@]} == 0 )) || stop 'Prerequisites are still missing; inspect package integrity before retrying.'
+        [[ $profile != framework ]] || check_boot
+    else
+        printf '%s\n' 'Launcher prerequisites are already present; no phase-0 package transaction.'
+    fi
+    exec /usr/bin/python3 -I "$repo/scripts/phase0.py" --profile "$profile" --from "$stage"
+}
+
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+    trap 'printf "Stopped. Inspect the error, then rerun ./bootstrap %s\\n" "${resume_args:-}" >&2' ERR
+    trap 'printf "Interrupted. Inspect partial work, then rerun ./bootstrap %s\\n" "${resume_args:-}" >&2; exit 130' INT TERM
+    main "$@"
+fi

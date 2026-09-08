@@ -6,6 +6,49 @@ installed configuration, packages, services, boot entries and storage were not
 modified. Builds, temporary roots, downloads and reports stayed in the new
 repository's ignored work area or temporary directories.
 
+## Fresh-base phase 0 validation — 2026-09-08
+
+- Added `./bootstrap` (Bash, Framework default) and `scripts/phase0.py`. `install`,
+  repository pins, source patches, file/package manifests, and staged safety
+  gates are unchanged. Existing prepared-machine invocation remains valid.
+- All 31 tests pass: 13 phase-0 tests, 12 installer tests and six rehearsals.
+  Phase-0 tests cover wrong distro/init/account, root/effective-root rejection,
+  missing/present prerequisites, ESP type/options, dry-run, noninteractive refusal,
+  retry after a package transaction, review decline/failure, source pin selection,
+  policy quoting, unsafe paths, atomic private policy creation, existing/symlink
+  destinations, publication races, and unprivileged installer handoff/status.
+- Test package/privilege/installer commands are stubbed. Files, Git fixtures and
+  simulated policy publication use temporary directories only. No live OS
+  package transaction, doas policy write, account change or mount was performed.
+- The actual pinned-policy fetch also succeeded against GitHub, reading the
+  250-byte doas blob at the exact dotfiles manifest revision into a temporary
+  bare repository. It did not execute fetched code or install the policy.
+- The read-only phase-0 platform, account, checkout and ESP guards passed on the
+  real Framework host as bren; prerequisite detection correctly reported nothing
+  missing. Only those inspection functions ran, not the installer or su/policy steps.
+- Artix sync metadata confirms base includes Bash/coreutils/shadow/util-linux,
+  pacman/keyring and iproute2/iputils; Git, github-cli, Python, opendoas and dhcpcd
+  cannot all be assumed on a minimal base. The installed opendoas file list
+  includes its PAM policy and executable but does not supply `/etc/doas.conf`.
+- `scripts/check` covers the new entrypoint and passes syntax, all 66 allowlisted
+  destinations, all 129 explicit packages and the obvious-secret scan. Python
+  AST/compile checks, Bash syntax, documentation links and `git diff --check`
+  pass. ShellCheck and Ruff are unavailable; no host packages were installed just
+  to obtain linters. Bash's syntax checker is the available shell check.
+- Security review: no credential handling or curl-pipe-shell; fixed prerequisite
+  names, quoted policy data, isolated Python, no temporary broad doas rule, no
+  automatic ownership/account repair, and no root execution of downloaded source.
+  Existing final wheel/power permissions are explicitly reviewed before being
+  installed early. The main installer retains its original privilege boundaries.
+
+A sandbox remaps `/home` ownership and PID 1, so the new preflight correctly
+refuses that artificial environment. Read-only host inspection also confirmed
+that `/proc/1/exe` is not readable by bren; the running-init check uses the
+unprivileged `/proc/1/comm` interface instead. The read-only network fetch was
+verified outside the sandbox. Full fresh installation, interactive su/doas authentication, package
+upgrades, boot and physical hardware acceptance remain target-machine tests;
+these automated results do not claim an end-to-end physical restore.
+
 ## Guided installer validation — 2026-09-07
 
 - Current restore scope is 129 explicit packages, ten services and 66 managed
