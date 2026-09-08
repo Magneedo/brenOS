@@ -4,61 +4,32 @@ These commands target a **fresh installation**, not the running reference laptop
 Work from tty2 (Ctrl-Alt-F2) or a recovery shell so tty1's desktop autostart does
 not interrupt setup. Keep that console available until login/lock are tested.
 
-## 1. Clean-install prerequisites
+## 1. Fresh-base preparation
 
-Install x86_64 Artix using **runit** and a normal user `bren`, UID 1000, primary
-group `bren`, home `/home/bren`, shell `/bin/bash`. Use the disk layout in
-[boot.md](boot.md) if reproducing the Framework. Mount the ESP at `/boot` before
-installing the kernel or microcode. Choose `linux`, `booster`, `intel-ucode`,
-`btrfs-progs`, `runit`, `runit-rc`, and `elogind` during the base install. Booster
-is the intended initramfs provider; review Pacman's provider/conflict prompts if
-the clean installation selected a different generator. Confirm `/sbin/init`
-resolves to `runit-init`.
+Use [Fresh Framework restore in README](../README.md#fresh-framework-restore)
+for the complete root-console → temporary network → authentication → clone →
+`./bootstrap` sequence. It is the canonical entry path; do not create a temporary
+wheel-wide doas rule. Phase 0 validates the existing account, installs missing
+launcher tools, and, only if policy is absent, reviews/installs the exact pinned
+final doas policy before handing off to `install` as bren.
 
-Prerequisites also include working Internet, a correct clock (TLS/signatures),
-root access, enabled firmware virtualization, UEFI mode with Secure Boot disabled,
-and separate backups of the manual inputs. Networking used for installation may
-be temporary; the final configuration is applied later.
+Choose x86_64 Artix with runit/runit-rc, a bootable kernel, and a normal bren
+account (UID and primary GID 1000, /home/bren, /bin/bash, active wheel membership).
+The Framework restore expects UEFI with Secure Boot disabled and the reviewed
+[boot layout](boot.md). Mount the ESP at /boot before kernel/microcode or any full
+package upgrade. The intended kernel/initramfs setup uses linux, booster,
+intel-ucode and btrfs-progs; review provider conflicts if the base selected another
+initramfs generator. Keep root access, working networking/mirrors/signatures,
+a correct clock and separate private backups. Select dhcpcd and the required NIC
+firmware during installation so temporary networking works at the first login.
 
-From the fresh installation's root shell, install the tools needed to get this
-private repository and run its scripts:
-
-```sh
-pacman -Syu --needed git github-cli python opendoas
-```
-
-If the installer did not create the account, create it now, then set its password:
-
-```sh
-useradd -m -u 1000 -s /bin/bash bren
-passwd bren
-```
-
-For an existing installer-created account, check `getent passwd bren` and skip
-`useradd`. Add it to wheel. If no doas policy exists yet, create the temporary
-password-authenticated policy below; keep an existing working policy otherwise:
-
-```sh
-usermod -aG wheel bren
-if [ ! -e /etc/doas.conf ]; then
-    printf 'permit persist :wheel\n' > /etc/doas.conf
-    chmod 0600 /etc/doas.conf
-fi
-```
-
-Log in as bren on tty2. Authenticate GitHub interactively; do not paste tokens
-into commands, files in the repository, or clone URLs:
-
-```sh
-gh auth login --hostname github.com --git-protocol https
-mkdir -p ~/Projects
-gh repo clone Magneedo/artix-bootstrap ~/Projects/artix-bootstrap
-cd ~/Projects/artix-bootstrap
-```
+See [phase-0 boundaries and recovery](bootstrap.md) for exact minimum assumptions,
+account creation checks, authentication alternatives and privilege/security review.
 
 ## Guided installation
 
-From the cloned repository on the freshly installed target, as bren on tty2:
+Phase 0 automatically runs the command below. A prepared machine can run it
+directly from the cloned repository, as bren on tty2:
 
 ```sh
 ./install --profile framework
@@ -247,6 +218,7 @@ it is not a side effect of package or file restoration.
 scripts/check
 python3 tests/rehearsal.py
 python3 tests/installer.py
+python3 tests/bootstrap.py
 doas scripts/verify --profile framework
 ```
 

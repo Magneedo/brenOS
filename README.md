@@ -4,10 +4,84 @@ Restore the intentional configuration of bren's Artix/runit system from a clean
 Artix installation. The complete reference profile is **Framework Laptop 13,
 Intel i5-1240P**, x86_64, with `/home/bren` and UID 1000.
 
-Start with [the installation sequence](docs/install.md). It links the disk,
-package, boot, secret and verification instructions at the point they are needed.
-After its base prerequisites, GitHub authentication and clone, run as bren from
-a local text console such as tty2:
+## Fresh Framework restore
+
+Start from a booted x86_64 Artix **runit** installation, using a local text console
+such as tty2. During OS installation, create `bren` with UID **1000**, primary
+group `bren`/GID **1000**, home `/home/bren`, shell `/bin/bash`, and wheel membership.
+Set bren's and root's passwords. If the account is absent or differs, follow the
+[account checks](docs/bootstrap.md#design-and-minimum-base); bootstrap never renames
+users or changes IDs. Choose the [reviewed disk/boot layout](docs/boot.md) during
+installation, with the existing FAT ESP mounted read-write at `/boot`.
+
+For the temporary network, use wired Ethernet or USB tethering. Include `dhcpcd`
+and the needed NIC firmware during the Artix install: base alone does not supply
+a DHCP client. If you already have Internet, skip the DHCP command below. If the
+fresh machine lacks networking tools, use live media to install them into the
+target first; bootstrap cannot download through an absent network.
+
+In the **fresh machine's root console**, check the clock, select the interface
+shown by `ip` (do not assume eth0), and install only the repository-access tools:
+
+```sh
+date -u
+ip -br link
+read -r -p 'Temporary wired/USB network interface: ' bootstrap_iface
+dhcpcd -w "$bootstrap_iface"
+findmnt --mountpoint /boot -o SOURCE,FSTYPE,OPTIONS
+# Continue only after the reviewed ESP is mounted as vfat,rw.
+# If /etc/fstab already names the correct ESP and it is unmounted: mount /boot
+pacman -Syu --needed git github-cli ca-certificates
+```
+
+Keep working Artix mirrors and signature checks. Correct a wrong clock before
+TLS/package operations. This full base upgrade can run kernel hooks, so `/boot`
+must be mounted **before** this first Pacman transaction too.
+
+Log in as **bren on tty2**. Authenticate using gh's displayed browser/device code;
+you can complete it on another trusted device without installing a local browser:
+
+```sh
+umask 077
+gh auth login --hostname github.com --git-protocol https --web
+gh auth setup-git --hostname github.com
+mkdir -p ~/Projects
+gh repo clone Magneedo/artix-bootstrap ~/Projects/artix-bootstrap
+cd ~/Projects/artix-bootstrap
+./bootstrap
+```
+
+`./bootstrap` defaults to Framework. It validates the base/account/checkout and
+ESP, offers to install only missing launcher prerequisites (Python, Git, doas,
+findmnt and CA trust), then invokes the existing installer as bren. Expect `su`
+to request the **root password** for prerequisite installation and, only when
+doas policy is absent, installation of the displayed **pinned final policy**.
+No temporary broad rule is created. Later doas prompts use bren's password.
+
+Minimal consoles may lack a credential store; gh can fall back to an unencrypted
+file under `~/.config/gh`, protected by the private umask above. Keep it out of
+Git/backups you share. [Authentication alternatives and security details](docs/bootstrap.md#obtaining-the-private-repository)
+cover SSH and non-persistent ordinary Git HTTPS. Never put a token in a command,
+URL, environment variable or repository file.
+
+At an intentional gate/failure, use the printed resume command after completing
+the requested work. For example, after configuration and a fresh tty2 login:
+
+```sh
+cd ~/Projects/artix-bootstrap
+./install --profile framework --from services
+# After completing boot/EFI work and rebooting deliberately:
+./install --profile framework --from verify
+```
+
+`./bootstrap --dry-run` prints phase 0 without executing commands or writing files;
+`./bootstrap --from STAGE` rechecks prerequisites and resumes on a local console.
+Restore Wi-Fi credentials and other secrets manually at the existing services
+gate; stop/reconcile temporary networking before enabling the final services.
+Disk/UUID/EFI decisions, reboot and hardware tests remain manual. See
+[the full staged installation sequence](docs/install.md) for those reviews.
+
+A machine that already meets the prerequisites can still run directly:
 
 ```sh
 ./install --profile framework
@@ -62,6 +136,7 @@ account rather than relying on a hidden username substitution.
 
 | Path | Purpose |
 | --- | --- |
+| `bootstrap`, `scripts/phase0.py` | Minimal fresh-base checks, prerequisite/pinned-policy preparation and unprivileged handoff |
 | `install` | Interactive orchestration, read-only plan and explicit stage resume |
 | `manifests/` | Packages, services, groups, capabilities, directory permissions, Wi-Fi methods, pinned repositories, file allowlist |
 | `files/portable`, `files/framework` | Missing reviewed configuration and scripts |
@@ -70,6 +145,7 @@ account rather than relying on a hidden username substitution.
 | `scripts/` | Independent restoration, inspection and verification stages |
 | `tests/rehearsal.py` | Temporary-root deployment and failure/retry tests |
 | `tests/installer.py` | Installer stop/resume, privilege boundaries and offline helper-bootstrap tests |
+| `tests/bootstrap.py` | Fresh-base, privilege, policy, retry and handoff tests without host changes |
 | `.work/`, `local/` | Ignored builds, rehearsals, local reports and machine inputs |
 
 Individual mutating stage scripts preview by default and require `--apply` to write.
@@ -88,7 +164,7 @@ belong in a separate backup. See [manual inputs](docs/secrets.md). Never use
 
 To maintain this capture: edit the specific manifest/file, prepare sources and
 build the desktop, run `scripts/check`, `python3 tests/rehearsal.py`,
-`python3 tests/installer.py`, and the
+`python3 tests/installer.py`, `python3 tests/bootstrap.py`, and the
 read-only `scripts/verify --profile framework`, then review and commit. Update a
 repository pin and its patch together. Once a patch is incorporated into its
 original repository, advance the pin and remove the redundant patch.
