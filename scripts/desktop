@@ -20,11 +20,10 @@ make -C "$build/dwl" check
 make -C "$build/dwlb" -j "$(getconf _NPROCESSORS_ONLN)"
 mkdir -p "$build/stage/usr/local/bin"
 install -m755 "$build/dwl/dwl" "$build/stage/usr/local/bin/dwl"
+install -Dm755 "$build/dwl/dwl-codex" "$build/stage/usr/local/libexec/dwl-codex"
 install -m755 "$build/dwlb/dwlb" "$build/stage/usr/local/bin/dwlb"
-# These installed artifacts existed on the reference even though its current
-# dwl Makefile only installs the binary.
+# Retain the session descriptor for optional session launchers.
 install -Dm644 "$build/dwl/dwl.desktop" "$build/stage/usr/local/share/wayland-sessions/dwl.desktop"
-install -Dm644 "$build/dwl/dwl.1" "$build/stage/usr/local/share/man/man1/dwl.1"
 if [[ -e .work/desktop-stage && ! -L .work/desktop-stage ]]; then
     echo 'Refusing to replace non-symlink .work/desktop-stage' >&2; exit 1
 fi

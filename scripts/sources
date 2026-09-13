@@ -29,7 +29,8 @@ while IFS=$'\t' read -r name url revision; do
     if [[ -f $patch_file ]]; then
         read -r patch_id _ < <(sha256sum "$patch_file")
     fi
-    version=$name-$revision-$patch_id
+    # Do not reuse older preparations that silently skipped patches in subdirectories.
+    version=$name-$revision-$patch_id-v2
     prepared=$repo/.work/sources/$version
     if [[ -d $prepared ]]; then
         (cd "$prepared"; sha256sum --quiet -c .source-files.sha256)
@@ -38,7 +39,10 @@ while IFS=$'\t' read -r name url revision; do
         trap 'rm -rf -- "$scratch"' EXIT
         git -C "$source_repo" archive "$revision" | tar -x -C "$scratch"
         if [[ -f $patch_file ]]; then
-            (cd "$scratch"; git apply --check "$patch_file"; git apply "$patch_file")
+            (cd "$scratch"
+             export GIT_CEILING_DIRECTORIES="$repo/.work"
+             git apply --check "$patch_file"
+             git apply "$patch_file")
         fi
         (cd "$scratch"; find . -type f ! -name .source-files.sha256 -print0 | sort -z | xargs -0 sha256sum > .source-files.sha256)
         mv -- "$scratch" "$prepared"

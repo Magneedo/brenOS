@@ -149,7 +149,7 @@ checksums make unexpected edits fail visibly. If intentionally changing sources,
 update the original repository/pin/patch and prepare again.
 
 The desktop stage builds from fresh copies, runs dwl's swallowing regression
-tests and stages both executables plus the session file/manpage. It uses the
+tests and stages both executables, the Codex helper and the session file. It uses the
 existing Makefiles, including dwl's `-march=native`, and requires wlroots 0.19.
 Build on the target hardware. Do not substitute wlroots 0.18 or a future major ABI.
 

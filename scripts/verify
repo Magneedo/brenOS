@@ -10,7 +10,7 @@ import re
 import shutil
 import subprocess
 import sys
-from common import REPO, equivalent, file_rows, lines, selected, source_path, target_path, policy_integrity_ok
+from common import REPO, equivalent, file_rows, lines, selected, source_path, target_path, policy_integrity_ok, service_running
 
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('--profile', choices=['portable', 'framework'], default='portable')
@@ -45,11 +45,11 @@ for _, origin, relative, destination, mode in file_rows(a.profile):
             # Debug paths/toolchain changes affect binary hashes; test existence
             # and dynamic linking here, and rebuild/test source with desktop.
             check(target.is_file() and os.access(target, os.X_OK), destination, 'Compositor/bar executable installed')
-        elif destination == 'usr/local/share/man/man1/dwl.1' and target.is_file():
-            record('PASS' if equivalent(source, target, destination) else 'REVIEW', destination,
-                   'The reference has an older manpage; restore uses the documentation in the pinned source')
         else:
-            check(equivalent(source, target, destination), destination, 'Matches managed configuration')
+            matches = equivalent(source, target, destination)
+            check(matches, destination, 'Matches managed configuration' if matches else 'Managed content is missing or different')
+            if matches and source.read_bytes() != target.read_bytes():
+                record('INFO', destination + ':representation', 'Equivalent managed settings; only allowed representation or unmanaged fields differ')
         if target.exists():
             check(target.stat().st_mode & 0o7777 == int(mode, 8), destination + ':mode', 'Expected ' + mode)
             if root == Path('/'):
@@ -101,6 +101,8 @@ if root == Path('/'):
                   and st.st_gid == grp.getgrnam(group).gr_gid
                   and st.st_mode & 0o7777 == int(mode, 8), 'directory:' + directory,
                   'Expected ' + owner + ':' + group + ' ' + mode)
+        except PermissionError:
+            record('UNKNOWN', 'directory:' + directory, 'Permission denied; cannot inspect directory metadata')
         except (OSError, KeyError, ValueError) as e:
             record('FAIL', 'directory:' + directory, str(e))
     for path in ('/usr/bin/doas',):
@@ -112,13 +114,31 @@ if root == Path('/'):
     for name in names:
         definition = Path('/etc/runit/sv') / name
         link = base / name
-        check(link.is_symlink() and link.resolve() == definition and not (definition / 'down').exists(),
-              'service:' + name, 'Enabled in default runlevel, no down file')
+        try:
+            link.lstat()
+            try:
+                (definition / 'down').stat()
+                down = True
+            except FileNotFoundError:
+                down = False
+            check(link.is_symlink() and link.resolve() == definition and not down,
+                  'service:' + name, 'Enabled in default runlevel, no down file')
+        except PermissionError:
+            record('UNKNOWN', 'service:' + name, 'Cannot inspect service definition')
+        except FileNotFoundError:
+            record('FAIL', 'service:' + name, 'Service link is missing')
         # runsv changes process permissions; unprivileged inability is incomplete,
         # never proof that a service is stopped or running.
-        state = command('sv', 'status', str(link))
-        if state is not None:
-            check(state.startswith('run:'), 'running:' + name, 'Service process is running')
+        try:
+            state = subprocess.run(['sv', 'status', str(link)], text=True,
+                                   capture_output=True, timeout=20, env=dict(os.environ, LC_ALL='C'))
+            running = service_running(state)
+            if running is None:
+                record('UNKNOWN', 'running:' + name, 'Cannot read runit status; check privileges and supervision')
+            else:
+                check(running, 'running:' + name, 'Service process is running' if running else 'Service is down')
+        except (OSError, subprocess.TimeoutExpired) as e:
+            record('UNKNOWN', 'running:' + name, str(e))
     if base.is_dir():
         extra = sorted(f.name for f in base.iterdir() if f.name not in names)
         if extra:
@@ -191,27 +211,26 @@ if root == Path('/'):
         for name in ('home', 'hotspot', 'school'):
             path = Path('/etc/wpa_supplicant') / (name + '.conf')
             try:
-                check(path.is_file() and path.stat().st_uid == 0 and not path.stat().st_mode & 0o077,
+                st = path.stat()
+                check(path.is_file() and st.st_uid == 0 and not st.st_mode & 0o077,
                       'wifi:' + name, 'Private root-owned profile present; credentials are never read')
             except PermissionError:
                 record('UNKNOWN', 'wifi:' + name, 'Cannot inspect profile metadata')
+            except FileNotFoundError:
+                record('FAIL', 'wifi:' + name, 'Private profile is missing')
         for name in ('Pictures/Screensaver/Screensaver', 'Pictures/Lockscreen/Lockscreen.jpg', 'VM/Windows/disk.qcow2'):
             check((Path('/home/bren') / name).is_file(), 'manual:' + name, 'Restore separately from personal backup')
         record('MANUAL', 'hardware-smoke-tests', 'Test fingerprint login, Wi-Fi profiles, Bluetooth, screen sharing, audio and hibernation physically; see docs/verify.md')
-    report_path = REPO / 'local/privileged-audit.json'
     protected = None
     try:
         if os.geteuid() == 0:
             raw = command(sys.executable, str(REPO / 'scripts/audit-privileged'))
             if raw is not None:
                 protected = json.loads(raw)
-        elif report_path.is_file():
-            protected = json.loads(report_path.read_text())
-            record('REVIEW', 'protected-audit-age', 'Using the saved audit; rerun as root for current protected state')
     except (OSError, ValueError):
-        record('UNKNOWN', 'protected-audit', 'Saved/protected report could not be read or parsed')
+        record('UNKNOWN', 'protected-audit', 'Protected report could not be read or parsed')
     if protected is None:
-        record('UNKNOWN', 'protected-audit', 'Run scripts/audit-privileged as root to inspect protected policy and scheduled-job coverage')
+        record('UNKNOWN', 'protected-audit', 'Rerun this verifier with doas for current protected state; saved reports are historical evidence only')
     else:
         if a.profile == 'framework':
             for row in lines('wifi-methods.tsv'):

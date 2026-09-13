@@ -10,6 +10,16 @@ managed. The inventories now describe the selected restore scope; the original
 audit remains in Git history. Existing extras on a host are reported for review,
 not automatically uninstalled or disabled by the bootstrap.
 
+Scope revision, 2026-09-12: T3 Code was uninstalled and removed from the
+AUR manifest, explicit/all/foreign inventories and AUR provenance. These files
+are captured inventories, not generated build outputs; they now describe the
+128-package intended restore scope. The canonical package manifests drive
+installation, and `scripts/check` checks explicit-inventory agreement.
+The older manpage is no longer deployed or audited. WPA literal quoting and
+trailing dhcpcd blank lines are harmless representations; inaccessible live
+state remains unverified. Source pins now select the completed popup work and
+retained licensing directly; the original capture below is historical.
+
 ## Existing sources of truth
 
 | Repository | Published/local HEAD | Coverage |

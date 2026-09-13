@@ -119,6 +119,17 @@ desktop builds, groups/capabilities, networking, audio startup and Framework boo
 configuration are covered. `manifests/files.tsv` is the complete deployment
 allowlist; no directory-wide home or `/etc` copy is used.
 
+The dwl build includes the persistent `Mod+c` Codex popup and its
+`/usr/local/libexec/dwl-codex` helper. `tmux` is an additional direct runtime
+dependency; `foot` and `openai-codex` are already included. Each graphical session
+starts a fresh chat, and hiding the popup keeps Codex working. Restore Codex
+authentication separately through its normal login flow.
+
+Popup width and height default to `100` percent in dwl's `config.h`; both can be
+changed to `80` for a centered smaller popup. Wheel input scrolls the dedicated
+tmux history. `Mod+Escape` uses util-linux's existing `flock` to keep wlogout
+single-instance. Bootstrap does not install the dwl manpage.
+
 Pacman and AUR stay rolling release. Package-version inventories record the audit
 baseline; they are not instructions to downgrade individual packages. Source
 configuration is pinned. Restoration may need explicit maintenance if repositories,

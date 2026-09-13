@@ -6,6 +6,56 @@ installed configuration, packages, services, boot entries and storage were not
 modified. Builds, temporary roots, downloads and reports stayed in the new
 repository's ignored work area or temporary directories.
 
+## Popup and restoration completion, 2026-09-12
+
+- dwl and dwlb build cleanly without compiler warnings. Bootstrap stages their
+  completed source commits directly, including `dwl-codex`; the duplicated dwl
+  patch is removed. GitHub fetches resolve the new pins. The remaining dotfiles
+  patch is checked in reverse after preparation, guarding against silently
+  skipped patches beneath the bootstrap checkout.
+- Real headless dwl/foot/tmux tests reproduce the wheel-to-arrow failure, then
+  verify mouse scrollback, return to the prompt by scrolling down or Escape,
+  and ordinary typing/arrow input. Before/after screenshots also confirmed that
+  earlier output becomes visible. Codex itself is represented by a busy process
+  recording raw input; no model requests are sent. The live Codex pane's terminal
+  modes confirmed the same cause, and mouse reporting was enabled on its existing
+  dedicated server without changing its Codex PID.
+- Full popup tests pass at 100% and 80%, plus out-of-range percentages (0/200)
+  clamped to valid geometry. Tests include centered coordinates, a reserved bar
+  area, two monitors, tags, monitor removal, rapid toggles, hidden background
+  work, fullscreen stacking, swallowing exclusion, terminal close/detach/crash,
+  server/session recovery, fresh graphical sessions and normal/crash cleanup.
+  A standalone foot shutdown hang under load prompted a bounded child wait.
+  The tracked configuration remains 100% by 100%.
+- Actual wlogout launches through the configured binding survive repeated
+  bursts of 100 keypresses with one process, then launch again after exit.
+  No power action or swaylock setting is changed. The nonblocking lock uses the
+  already-required util-linux package and is not inherited by action children.
+- All 36 bootstrap tests pass: 11 rehearsals, 12 installer tests and 13 phase-0
+  tests. Rehearsals cover literal WPA quoting, meaningful shell changes,
+  dhcpcd trailing blank lines, inaccessible files, runit down versus unreadable
+  status, idempotent temporary-root deployment and protected-policy integrity.
+  Syntax, manifest coverage, obvious-secret scanning and diff whitespace checks
+  pass for 66 destinations and 128 explicit packages. ShellCheck is unavailable.
+- T3 Code is removed from the AUR manifest and the captured explicit/all/foreign
+  inventories and AUR provenance. The AUR preview selects only the six remaining
+  packages. dwl's manpage is retained as upstream source documentation but is
+  not deployed or compared; unused man/data installation variables are removed.
+- dwl's GPL and dwm/sway/TinyWL attribution remain, and distribution archives
+  include them. dwlb's removed license and UTF-8/protocol notices are restored
+  from its history. Generated protocol bindings are rebuilt from XML rather
+  than tracked, preserving generated attribution without duplicate source state.
+- With explicit authorization and fingerprint authentication, the validated dwl
+  binary and Codex helper were installed and checked byte-for-byte with root:root
+  ownership and 0755 modes. The running graphical session was preserved; the
+  new geometry and wlogout binding require the next graphical login. The host
+  audit reports 269 passes, zero mismatches, 12 unverified privileged checks and
+  four equivalent-representation notices. Historical protected reports no longer
+  count as current verification. Privileged policy/runit state was not re-audited.
+
+No package transaction, boot change, reboot or physical multi-monitor test was
+performed. The unrelated dotfiles Windows-launcher deletion remains unstaged.
+
 ## Fresh-base phase 0 validation — 2026-09-08
 
 - Added `./bootstrap` (Bash, Framework default) and `scripts/phase0.py`. `install`,

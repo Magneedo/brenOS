@@ -29,6 +29,7 @@ rtkit
 runit-rc
 sed
 shadow
+tmux
 udev
 wayland
 xcb-util-wm

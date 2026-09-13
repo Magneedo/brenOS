@@ -29,7 +29,7 @@ wrong OS/init/account, ESP checks, policy creation/refusal, root boundaries,
 reruns and handoff using fake commands and temporary paths.
 `./bootstrap --dry-run` needs no Python and changes nothing.
 
-`scripts/check` ensures all 129 intended explicit packages have a manifest, every local
+`scripts/check` ensures all 128 intended explicit packages have a manifest, every local
 file source is tracked, destinations are unique, source inputs exist, scripts
 parse and obvious secret/binary artifacts are absent. Stage intended files before
 running it, since it inspects Git's file list. It is a useful check, not a complete
@@ -72,12 +72,14 @@ scheduled entries that lack a restoration definition. `pacman -Qkk` checks the
 three packages supplying protected policy. Its one known polkit directory GID
 warning is accepted only alongside a separate root:polkitd/0750 comparison;
 additional warnings or changed rule contents still fail. When run unprivileged, a
-saved report is only historical evidence and is labelled for review.
+saved report is historical evidence only; current protected checks remain
+`UNKNOWN` until the verifier runs with sufficient privileges.
 
 Verifier exit codes: 0 means the automated comparisons passed, 1 means managed
 state is missing/different, 2 means a comparison was incomplete (for example
-permission denied). `REVIEW` identifies extra packages/services or the reference's
-older manpage; `MANUAL` records required physical tests. Zero is not proof that
+permission denied). A reported down service is a failure; unreadable runit
+supervision state is `UNKNOWN`, identified by service name. `REVIEW` identifies
+extra packages/services; `MANUAL` records required physical tests. Zero is not proof that
 the machine boots or that hibernation works.
 
 Comparisons include managed contents/modes/owners, required packages, repository
@@ -89,8 +91,11 @@ managed key subset; extra application state is not compared or exported.
 
 The binaries are tested by rebuilding their pinned sources and checking installed
 runtime libraries, not by demanding identical binary hashes across compilers or
-build paths. The reference's manpage predates its source checkout; restoring the
-current source manpage is an informational documentation difference.
+build paths. dwl's upstream manpage stays in its source repository but is no
+longer installed or compared by bootstrap. Literal quoting in the WPA service
+configuration and trailing blank lines in the dhcpcd run script are accepted
+representation differences and reported as `INFO`. Changed arguments, shell
+expansions and additional commands are not normalized away.
 
 ## Physical acceptance tests
 

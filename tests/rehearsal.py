@@ -9,7 +9,7 @@ import unittest
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO/'scripts'))
-from common import policy_integrity_ok
+from common import equivalent, literal_assignments, policy_integrity_ok, service_running
 
 class Rehearsal(unittest.TestCase):
     def setUp(self):
@@ -32,6 +32,14 @@ class Rehearsal(unittest.TestCase):
         result = subprocess.run([str(REPO/'scripts/verify'), '--profile', 'framework',
                                  '--root', str(self.root)], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_prepared_sources_include_reviewed_patches(self):
+        env = dict(os.environ, GIT_CEILING_DIRECTORIES=str(REPO/'.work'))
+        for patch in (REPO/'patches').glob('*.patch'):
+            prepared = REPO/'.work/sources'/patch.stem
+            result = subprocess.run(['git', 'apply', '--reverse', '--check', str(patch)],
+                                    cwd=prepared, env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, patch.name + ': ' + result.stderr)
 
     def test_conflict_preflight_and_backup(self):
         self.files('--apply')
@@ -86,6 +94,49 @@ class Rehearsal(unittest.TestCase):
         self.assertFalse(policy_integrity_ok('polkit', {'status': 1, 'stderr': changed_rule}))
         self.assertFalse(policy_integrity_ok('openssh', {'status': 1, 'stderr': observed}))
         self.assertFalse(policy_integrity_ok('polkit', {'status': 2, 'stderr': observed}))
+
+    def test_only_literal_shell_representation_is_normalized(self):
+        source, target = Path(self.tmp.name)/'source', Path(self.tmp.name)/'target'
+        relative = 'etc/runit/sv/wpa_supplicant/conf'
+        source.write_text("CONF_FILE=/etc/wpa_supplicant/home.conf\nWPA_INTERFACE=wlan0\nOPTS='-s'\n")
+        target.write_text('CONF_FILE="/etc/wpa_supplicant/home.conf"\nWPA_INTERFACE=wlan0\nOPTS=-s\n')
+        self.assertTrue(equivalent(source, target, relative))
+        for text in ('OPTS=-dd\n', 'OPTS=$HOME\n', "OPTS='$(id)'\n", 'OPTS=-s; id\n', 'OPTS=-s\nexit 0\n'):
+            target.write_text(text)
+            self.assertFalse(equivalent(source, target, relative), text)
+        self.assertIsNone(literal_assignments('OPTS="$HOME"\n'))
+
+    def test_dhcpcd_trailing_blank_lines_only(self):
+        source, target = Path(self.tmp.name)/'source', Path(self.tmp.name)/'target'
+        relative = 'etc/runit/sv/dhcpcd/run'
+        source.write_text('#!/bin/sh\nexec 2>&1\nexec dhcpcd -B -q -w\n')
+        target.write_text(source.read_text() + '\n')
+        self.assertTrue(equivalent(source, target, relative))
+        self.assertFalse(equivalent(source, target, 'another/script'))
+        target.write_text(source.read_text().replace('-w', '-b'))
+        self.assertFalse(equivalent(source, target, relative))
+
+    def test_inaccessible_files_are_not_mismatches(self):
+        self.files('--apply')
+        protected = self.root/'etc/doas.conf'
+        protected.chmod(0)
+        self.addCleanup(protected.chmod, 0o600)
+        result = subprocess.run([str(REPO/'scripts/verify'), '--profile', 'framework',
+                                 '--root', str(self.root), '--json'], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn('"UNKNOWN"', result.stdout)
+        protected.chmod(0o600)
+        protected.write_text('different policy\n')
+        result = subprocess.run([str(REPO/'scripts/verify'), '--profile', 'framework',
+                                 '--root', str(self.root)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1)
+
+    def test_runit_status_distinguishes_down_and_unreadable(self):
+        result = lambda status, out, err='': subprocess.CompletedProcess(['sv'], status, out, err)
+        self.assertTrue(service_running(result(0, 'run: /service/dbus: (pid 123) 5s\n')))
+        self.assertFalse(service_running(result(1, 'down: /service/dbus: 5s, normally up\n')))
+        self.assertIsNone(service_running(result(1, 'warning: /service/dbus: unable to open supervise/ok: access denied\n')))
+        self.assertIsNone(service_running(result(1, 'run: /service/dbus: (pid 123) 5s\n', 'status read failed')))
 
 if __name__ == '__main__':
     if os.geteuid() == 0:
