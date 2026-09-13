@@ -13,8 +13,7 @@ portable	dotfiles	home/.config/mpv/restore-old-bindings.conf	home/bren/.config/m
 portable	dotfiles	home/.config/mpv/restore-osc-bindings.conf	home/bren/.config/mpv/restore-osc-bindings.conf	0644
 portable	dotfiles	home/.config/swaylock/config	home/bren/.config/swaylock/config	0644
 portable	dotfiles	home/.config/tofi/config	home/bren/.config/tofi/config	0644
-portable	dotfiles	home/.config/wlogout/layout	home/bren/.config/wlogout/layout	0644
-portable	dotfiles	home/.config/wlogout/style.css	home/bren/.config/wlogout/style.css	0644
+portable	dotfiles	home/.config/tofi/emoji	home/bren/.config/tofi/emoji	0644
 portable	dotfiles	home/.config/xdg-desktop-portal/portals.conf	home/bren/.config/xdg-desktop-portal/portals.conf	0644
 portable	dotfiles	home/.local/bin/bluefilter	home/bren/.local/bin/bluefilter	0755
 portable	dotfiles	home/.local/bin/dwl-autostart	home/bren/.local/bin/dwl-autostart	0755
@@ -23,7 +22,11 @@ portable	dotfiles	home/.local/bin/fetch	home/bren/.local/bin/fetch	0755
 portable	dotfiles	home/.local/bin/net	home/bren/.local/bin/net	0755
 portable	dotfiles	home/.local/bin/screenshots	home/bren/.local/bin/screenshots	0755
 portable	dotfiles	home/.local/bin/statusd	home/bren/.local/bin/statusd	0755
+portable	dotfiles	home/.local/bin/tofi-emoji	home/bren/.local/bin/tofi-emoji	0755
+portable	dotfiles	home/.local/bin/tofi-power	home/bren/.local/bin/tofi-power	0755
 portable	dotfiles	home/.local/bin/wallpaper	home/bren/.local/bin/wallpaper	0755
+portable	dotfiles	home/.local/share/tofi/LICENSE.unicode	home/bren/.local/share/tofi/LICENSE.unicode	0644
+portable	dotfiles	home/.local/share/tofi/characters.txt	home/bren/.local/share/tofi/characters.txt	0644
 portable	dotfiles	home/.profile	home/bren/.profile	0644
 portable	dotfiles	home/.vimrc	home/bren/.vimrc	0644
 portable	dotfiles	etc/doas.conf	etc/doas.conf	0600

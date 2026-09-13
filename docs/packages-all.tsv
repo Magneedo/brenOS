@@ -710,7 +710,6 @@ which 2.25-1
 wireless-regdb 2026.05.30-1
 wireplumber 0.5.17-1
 wl-clipboard 1:2.3.0-1
-wlogout 1.2.2-0.1
 wlr-randr 0.5.0-1
 wlroots0.18 0.18.3-1
 wlroots0.19 0.19.3-1
@@ -718,6 +717,7 @@ woff2 1.0.2-6
 wolfssl 5.9.2-1
 wpa_supplicant 2:2.12-1
 wpa_supplicant-runit 20180429-3
+wtype 0.4-2
 x264 3:0.165.r3222.b35605a-2
 x265 4.3-1
 xcb-proto 1.17.0-4
