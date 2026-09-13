@@ -93,7 +93,6 @@ steam
 swaybg
 swayimg
 swaylock
-t3code-bin
 tk
 tllist
 tofi

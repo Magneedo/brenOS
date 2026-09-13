@@ -62,6 +62,6 @@ framework	bootstrap	files/framework/home/bren/.config/obs-studio/basic/profiles/
 framework	dotfiles	home/.config/obs-studio/basic/profiles/Untitled/streamEncoder.json	home/bren/.config/obs-studio/basic/profiles/Untitled/streamEncoder.json	0644
 framework	dotfiles	home/.config/obs-studio/basic/profiles/Untitled/recordEncoder.json	home/bren/.config/obs-studio/basic/profiles/Untitled/recordEncoder.json	0644
 portable	desktop	usr/local/bin/dwl	usr/local/bin/dwl	0755
+portable	desktop	usr/local/libexec/dwl-codex	usr/local/libexec/dwl-codex	0755
 portable	desktop	usr/local/bin/dwlb	usr/local/bin/dwlb	0755
 portable	desktop	usr/local/share/wayland-sessions/dwl.desktop	usr/local/share/wayland-sessions/dwl.desktop	0644
-portable	desktop	usr/local/share/man/man1/dwl.1	usr/local/share/man/man1/dwl.1	0644

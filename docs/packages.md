@@ -1,8 +1,8 @@
 # Package restoration
 
 `packages-portable.txt` + `packages-framework.txt` exactly cover the 122 native
-explicit packages. `packages-aur.txt` covers seven AUR packages. Together these
-equal the 129-name restoration inventory, enforced by `scripts/check`.
+explicit packages. `packages-aur.txt` covers six AUR packages. Together these
+equal the 128-name restoration inventory, enforced by `scripts/check`.
 No local package recipes are required.
 
 `packages-runtime.txt` promotes installed dependencies that are directly required
@@ -49,7 +49,7 @@ retains the already installed individual build tools instead. Review dependency
 and signing-key prompts. yay is called with its recipe diff/edit menus enabled
 and an explicit doas/makepkg configuration, without saving global yay settings.
 
-Current AUR recipes are used for the seven application packages. Cached recipe
+Current AUR recipes are used for the six application packages. Cached recipe
 commits/versions are recorded in [aur-provenance.tsv](aur-provenance.tsv) to help
 diagnose changes; they are not all known build inputs for the original installs.
 `localsend` requires a substantial Flutter/Rust build toolchain when built from

@@ -1,6 +1,8 @@
 """Small shared manifest/path helpers; Python standard library only."""
 from pathlib import Path
 import configparser
+import re
+import stat
 import subprocess
 
 REPO = Path(__file__).resolve().parent.parent
@@ -39,12 +41,20 @@ def target_path(root, relative):
     for part in (target, *target.parents):
         if part == root:
             break
-        if part.is_symlink():
+        try:
+            mode = part.lstat().st_mode
+        except FileNotFoundError:
+            continue
+        if stat.S_ISLNK(mode):
             raise ValueError(f'Refusing symlink destination/parent: {part}')
     return target
 
 def equivalent(source, target, relative):
-    if not target.is_file():
+    try:
+        mode = target.stat().st_mode
+    except FileNotFoundError:
+        return False
+    if not stat.S_ISREG(mode):
         return False
     if relative.endswith('/obs-studio/basic/profiles/Untitled/basic.ini'):
         # Only intentional recording keys are managed; OBS owns other state.
@@ -56,7 +66,35 @@ def equivalent(source, target, relative):
         active = lambda p: [l.split() for l in p.read_text().splitlines()
                             if l.strip() and not l.lstrip().startswith('#')]
         return active(source) == active(target)
+    if relative == 'etc/runit/sv/wpa_supplicant/conf':
+        wanted = literal_assignments(source.read_text())
+        if wanted is not None:
+            return wanted == literal_assignments(target.read_text())
+    if relative == 'etc/runit/sv/dhcpcd/run':
+        return source.read_bytes().rstrip(b'\n') == target.read_bytes().rstrip(b'\n')
     return source.read_bytes() == target.read_bytes()
+
+def literal_assignments(text):
+    # Only literal assignments are normalized. Never execute shell configuration
+    # or equate quoted expansions with executable shell syntax.
+    result = []
+    for line in text.splitlines():
+        if not line.strip() or line.lstrip().startswith('#'):
+            continue
+        match = re.fullmatch(r'''([A-Z_][A-Z0-9_]*)=(?:([-\w./:=]+)|'([-\w./:= ]*)'|"([-\w./:= ]*)")''',
+                             line.strip(), re.ASCII)
+        if match is None:
+            return None
+        result.append((match[1], next(v for v in match.groups()[1:] if v is not None)))
+    return result
+
+def service_running(result):
+    if result.returncode in (0, 1) and not result.stderr.strip():
+        if result.stdout.startswith('run:'):
+            return True
+        if result.stdout.startswith('down:'):
+            return False
+    return None
 
 def run(*args):
     return subprocess.run(args, check=True)
