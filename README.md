@@ -125,8 +125,8 @@ dependency; `foot` and `openai-codex` are already included. Each graphical sessi
 starts a fresh chat, and hiding the popup keeps Codex working. Restore Codex
 authentication separately through its normal login flow.
 
-Popup width and height default to `100` percent in dwl's `config.h`; both can be
-changed to `80` for a centered smaller popup. Wheel input scrolls the dedicated
+The pinned personal dwl `config.h` uses a centered `70` percent popup and 3px
+borders; `config.def.h` retains `100` percent defaults. Wheel input scrolls the dedicated
 tmux history. `Mod+Escape` uses util-linux's existing `flock` to keep wlogout
 single-instance. Bootstrap does not install the dwl manpage.
 
