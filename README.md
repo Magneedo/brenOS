@@ -98,7 +98,7 @@ for coverage and test limits. The authenticated policy audit is complete;
 physical restore/boot tests have not been performed.
 
 This repository supplies manifests, selected missing files, small scripts and
-reviewed patches. The existing repositories remain the sources of truth:
+optional reviewed patches. The existing repositories remain the sources of truth:
 
 - [dotfiles](https://github.com/Magneedo/dotfiles): shell, desktop/session scripts,
   application configuration and existing system overrides.
@@ -106,13 +106,13 @@ reviewed patches. The existing repositories remain the sources of truth:
 - [dwlb](https://github.com/Magneedo/dwlb): bar code and configuration.
 
 `manifests/repositories.tsv` pins their reviewed commits. `scripts/sources`
-prepares those commits plus `patches/` in ignored `.work/` directories. It never
+prepares those commits plus any `patches/` in ignored `.work/` directories. It never
 changes the original checkouts. The additional Windows launcher/helper preserve
 the working live versions without resurrecting the deleted, older dotfiles copy.
 
 ## What is reproduced
 
-The restore includes 129 explicit packages: 122 native packages and seven AUR
+The restore includes 128 explicit packages: 122 native packages and six AUR
 packages. Direct runtime/build dependencies are listed separately. Ten runit
 services, system policy,
 desktop builds, groups/capabilities, networking, audio startup and Framework boot
@@ -127,8 +127,18 @@ authentication separately through its normal login flow.
 
 The pinned personal dwl `config.h` uses a centered `70` percent popup and 3px
 borders; `config.def.h` retains `100` percent defaults. Wheel input scrolls the dedicated
-tmux history. `Mod+Escape` uses util-linux's existing `flock` to keep wlogout
-single-instance. Bootstrap does not install the dwl manpage.
+tmux history. `Mod+Escape` opens `tofi-power`, which uses the existing tofi theme
+and util-linux's `flock` to keep the power menu single-instance. Bootstrap
+installs the script from dotfiles and does not install the dwl manpage.
+
+`Mod+.` opens the searchable `tofi-emoji` popup for emoji, characters and symbols.
+Enter inserts the selection into the previously focused application through
+`wtype` and also copies it to the clipboard. Escape cancels without inserting or
+changing the clipboard. Its configuration, offline character catalogue and Unicode license
+are restored from dotfiles. The catalogue contains only entries that render with
+the reference machine's installed fonts; regeneration is documented in dotfiles.
+Fontconfig prefers Noto families while retaining the installed fallback fonts
+for broader character coverage.
 
 Pacman and AUR stay rolling release. Package-version inventories record the audit
 baseline; they are not instructions to downgrade individual packages. Source
