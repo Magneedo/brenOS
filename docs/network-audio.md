@@ -17,7 +17,8 @@ its log directory is created, but old logs are not restored.
 tty1 autologins bren, tty2 remains a password login. seatd runs with group `seat`
 and checks `/run/seatd.sock`. Bluetooth waits for the system D-Bus socket, then
 runs foreground with the battery plugin disabled. nftables loads
-`/etc/nftables.conf`, which drops unsolicited inbound traffic. sshd is not enabled:
+`/etc/nftables.conf` (captured here), which drops unsolicited inbound traffic except
+ping, DHCPv6 replies and LocalSend (53317). sshd is not enabled:
 the laptop only makes outbound SSH connections. chrony is the
 time service. elogind, polkit, rtkit and user D-Bus services may be activated on
 demand; they are not extra runit links to invent. The polkit rule comes from its
