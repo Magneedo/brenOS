@@ -195,8 +195,7 @@ doas sv status /run/runit/service/*
 ```
 
 The service stage verifies definitions, current runlevel, private Wi-Fi file
-permissions, `wlan0` and SSH configuration before linking
-services. It creates missing host keys with `ssh-keygen -A`; keys never enter Git.
+permissions and `wlan0` before linking services.
 Enabling a link in the current default runlevel can start that service immediately.
 Existing services are not restarted by the script. If existing processes predate
 the restored configuration, restart them deliberately from a local console or
