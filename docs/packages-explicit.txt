@@ -58,6 +58,7 @@ m4
 make
 mesa-utils
 mpv
+nftables-runit
 noto-fonts
 noto-fonts-cjk
 noto-fonts-emoji
@@ -91,6 +92,7 @@ smartmontools
 smem
 steam
 swaybg
+swayidle
 swayimg
 swaylock
 tk
