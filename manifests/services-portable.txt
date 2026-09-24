@@ -3,6 +3,6 @@ agetty-tty2
 chrony
 dbus
 dhcpcd
+nftables
 seatd
-sshd
 udevd
