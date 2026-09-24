@@ -3,22 +3,23 @@
 ## Runit
 
 The restore enables ten links in `/etc/runit/runsvdir/default`:
-agetty-tty1, agetty-tty2, bluetoothd, chrony, dbus, dhcpcd, seatd, sshd,
+agetty-tty1, agetty-tty2, bluetoothd, chrony, dbus, dhcpcd, nftables, seatd,
 udevd and wpa_supplicant. `current -> default`; `/run/runit/service` selects it.
 The standard Artix service definitions live in `/etc/runit/sv`.
 [Artix runit implementation](https://github.com/artix-linux/runit-artix)
 
 agetty/udev come through the base runit packages; dbus-runit, chrony-runit,
-dhcpcd-runit, seatd-runit and wpa_supplicant-runit are installed. The reference
-does not install bluez-runit or openssh-runit: Bluetooth and SSH have small
-captured local definitions. Bluetooth also has an svlogd service;
+dhcpcd-runit, nftables-runit, seatd-runit and wpa_supplicant-runit are installed.
+The reference does not install bluez-runit: Bluetooth has a small captured local
+definition. Bluetooth also has an svlogd service;
 its log directory is created, but old logs are not restored.
 
 tty1 autologins bren, tty2 remains a password login. seatd runs with group `seat`
 and checks `/run/seatd.sock`. Bluetooth waits for the system D-Bus socket, then
-runs foreground with the battery plugin disabled. SSH runs foreground and uses
-package-default OpenSSH configuration, the packaged Artix/elogind include files
-and separately generated host keys. chrony is the
+runs foreground with the battery plugin disabled. nftables loads
+`/etc/nftables.conf` (captured here), which drops unsolicited inbound traffic except
+ping, DHCPv6 replies and LocalSend (53317). sshd is not enabled:
+the laptop only makes outbound SSH connections. chrony is the
 time service. elogind, polkit, rtkit and user D-Bus services may be activated on
 demand; they are not extra runit links to invent. The polkit rule comes from its
 package; the permissions stage preserves `/etc/polkit-1/rules.d` as root:polkitd,
