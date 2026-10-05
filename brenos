@@ -1,0 +1,150 @@
+#!/bin/sh
+# brenOS: turn a fresh, booted Artix runit install into bren's desktop.
+# Run as root: sh brenos
+set -eu
+
+github=https://github.com/Magneedo
+die() { printf 'brenos: %s\n' "$*" >&2; exit 1; }
+say() { printf '\n==> %s\n' "$*"; }
+lines() { cat "$@" | grep -v '^#' | grep . || true; }
+
+[ "$(id -u)" = 0 ] || die 'run as root: sh brenos'
+grep -Eqx 'ID="?artix"?' /etc/os-release || die 'this is for Artix Linux'
+[ -d /etc/runit/sv ] || die 'this is for Artix with runit'
+
+printf 'Username [bren]: '
+read -r name
+name=${name:-bren}
+printf '%s\n' "$name" | grep -Eqx '[a-z_][a-z0-9_-]{0,31}' || die "invalid username: $name"
+if id -u "$name" >/dev/null 2>&1; then
+    IFS=: read -r _ _ uid _ _ dir shell <<EOF
+$(getent passwd "$name")
+EOF
+    [ "$uid" -ge 1000 ] && [ "$dir" = "/home/$name" ] && [ "$shell" = /bin/bash ] ||
+        die "$name exists, but isn't a normal user with /home/$name and bash"
+else
+    trap 'stty echo' EXIT
+    trap 'exit 1' INT TERM HUP
+    stty -echo
+    printf 'Password for %s: ' "$name"; read -r pass
+    printf '\nAgain: '; read -r again
+    stty echo
+    echo
+    [ -n "$pass" ] && [ "$pass" = "$again" ] || die 'the passwords are empty or differ'
+fi
+printf 'Framework Laptop 13 extras (Intel drivers, Wi-Fi, fingerprint, power profiles, snapshots)? [Y/n] '
+read -r reply
+case $reply in [Nn]*) profiles=portable ;; *) profiles='portable framework' ;; esac
+printf 'Install brenOS for %s now? It overwrites system and home configuration. [y/N] ' "$name"
+read -r reply
+case $reply in [Yy]*) ;; *) die 'cancelled' ;; esac
+
+home=/home/$name
+as_user() { runuser -u "$name" -- env HOME="$home" USER="$name" LOGNAME="$name" "$@"; }
+
+say "Creating $name"
+if ! id -u "$name" >/dev/null 2>&1; then
+    useradd -m -G wheel -s /bin/bash "$name"
+    printf '%s:%s\n' "$name" "$pass" | chpasswd
+fi
+unset pass again
+
+say 'Cloning brenOS, dotfiles, dwl and dwlb into ~/Projects'
+pacman -Syu --needed --noconfirm git
+for repo in brenOS dotfiles dwl dwlb; do
+    if [ -d "$home/Projects/$repo" ]; then
+        as_user git -C "$home/Projects/$repo" pull -q --ff-only ||
+            echo "Keeping ~/Projects/$repo as it is; it has local changes."
+    else
+        as_user git clone -q "$github/$repo.git" "$home/Projects/$repo"
+    fi
+done
+brenos=$home/Projects/brenOS
+cd "$brenos/manifests"
+packages=$(for p in $profiles; do lines "packages-$p.txt"; done)
+
+say 'Installing packages'
+pacman -S --needed --noconfirm artix-archlinux-support
+pacman-key --populate archlinux
+cp "$brenos/templates/pacman.conf" /etc/pacman.conf
+# --ask 4 lets a package replace one it conflicts with, as seatd-runit
+# replaces the elogind-runit of a standard Artix install.
+pacman -Syu --needed --noconfirm --ask 4 $packages
+pacman -S --needed --noconfirm --asdeps $(lines packages-runtime.txt) go
+pacman -D --asexplicit $packages >/dev/null
+
+# Build from a copy, so ~/Projects stays clean. For another user, every
+# "bren" in the copied sources becomes their name.
+stage=$(as_user mktemp -d)
+# Until the final policy is restored on exit, the user may run anything as
+# root without a password, so that AUR builds can install their dependencies.
+# The final policy is kept where the user's build commands can't change it.
+policy=$(mktemp)
+sed "s/\<bren\>/$name/g" "$home/Projects/dotfiles/etc/doas.conf" > "$policy"
+doas -C "$policy"
+trap 'install -m600 "$policy" /etc/doas.conf; rm -rf "$stage" "$policy"' EXIT
+trap 'exit 1' INT TERM HUP
+printf 'permit nopass %s\n' "$name" > /etc/doas.conf
+chmod 600 /etc/doas.conf
+for repo in dotfiles dwl dwlb; do as_user cp -r "$home/Projects/$repo" "$stage/"; done
+as_user cp -r "$brenos/files" "$stage/"
+[ "$name" = bren ] || grep -rlIwZ --exclude-dir=.git bren "$stage" | as_user xargs -0r sed -i "s/\<bren\>/$name/g"
+
+say 'Installing AUR packages'
+if ! command -v yay >/dev/null; then
+    as_user git clone -q https://aur.archlinux.org/yay.git "$stage/yay"
+    (cd "$stage/yay" && as_user makepkg --noconfirm)
+    pacman -U --noconfirm "$stage"/yay/yay-[0-9]*.pkg.tar.zst
+fi
+as_user yay -S --needed --noconfirm --sudo doas --answerdiff None --answerclean None $(lines packages-aur.txt)
+
+say 'Building dwl and dwlb'
+as_user make -C "$stage/dwl"
+as_user make -C "$stage/dwlb"
+make -C "$stage/dwl" install
+make -C "$stage/dwlb" install
+install -Dm644 "$stage/dwl/dwl.desktop" /usr/local/share/wayland-sessions/dwl.desktop
+
+say 'Copying configuration'
+deploy() { # home/ goes to the user's home, etc/ and usr/ to /
+    [ ! -d "$1/home" ] || as_user cp -rT --preserve=mode "$1/home" "$home"
+    for dir in etc usr; do [ ! -d "$1/$dir" ] || cp -rT --preserve=mode "$1/$dir" "/$dir"; done
+}
+deploy "$stage/dotfiles"
+for p in $profiles; do deploy "$stage/files/$p"; done
+install -m600 "$policy" /etc/doas.conf
+chmod 700 "$home"
+[ ! -f /etc/cron/crontabs/root ] || chmod 600 /etc/cron/crontabs/root
+
+say 'Setting groups, capabilities, shell, time zone and locale'
+for group in $(lines groups.txt); do
+    getent group "$group" >/dev/null || groupadd -r "$group"
+    usermod -aG "$group" "$name"
+done
+grep -q "^$name:" /etc/subuid || usermod --add-subuids 100000-165535 "$name"
+grep -q "^$name:" /etc/subgid || usermod --add-subgids 100000-165535 "$name"
+lines capabilities.tsv | while IFS='	' read -r path caps; do setcap "$caps" "$path"; done
+lines directories.tsv | while IFS='	' read -r dir owner group mode; do
+    [ -d "$dir" ] || continue
+    chown "$owner:$group" "$dir"
+    chmod "$mode" "$dir"
+done
+ln -sfT dash /usr/bin/sh
+ln -sfT /usr/share/zoneinfo/America/New_York /etc/localtime
+locale-gen
+case $profiles in *framework*) /usr/lib/booster/regenerate_images ;; esac
+
+say 'Enabling services'
+mkdir -p /var/log/bluetoothd /var/log/cron
+for service in $(for p in $profiles; do lines "services-$p.txt"; done); do
+    ln -sfn "/etc/runit/sv/$service" "/etc/runit/runsvdir/default/$service"
+done
+
+cat <<EOF
+
+brenOS is installed for $name. Still to do by hand (see the README):
+- Wi-Fi profiles in /etc/wpa_supplicant (docs/secrets.md)
+- Clone ~/Vault, then log in to GitHub, Codex and Claude (docs/secrets.md)
+- Framework: enroll a fingerprint (fprintd-enroll), set up hibernation (docs/boot.md)
+Then reboot. $name is logged in on tty1 and the desktop starts.
+EOF

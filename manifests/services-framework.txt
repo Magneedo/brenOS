@@ -1,2 +1,3 @@
 bluetoothd
+cron
 wpa_supplicant

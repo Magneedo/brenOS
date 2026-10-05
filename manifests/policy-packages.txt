@@ -1,4 +1,0 @@
-# Protected polkit/SSH policy is supplied by these packages, not local copies.
-polkit
-elogind
-openssh
