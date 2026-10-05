@@ -1,115 +1,81 @@
-# Manual inputs and excluded state
+# Manual inputs and private files
 
-These inputs intentionally live outside Git. A clean OS plus this repository
-cannot recreate private accounts, personal files or a licensed Windows VM from
-nothing. Keep an independent backup and restore the items you still use.
+Run `brenos` as root on the fresh, bootable Artix runit install. It asks for a
+username (default `bren`) and sets a password for a new account. Supply the rest
+locally after installation. Keep an independent private backup.
+- Set the root password yourself; never copy shadow/gshadow into Git.
+- Enroll and check a fingerprint with `fprintd-enroll` and `fprintd-verify`.
+- Authenticate GitHub/SSH and set Git user.name/user.email locally.
+- Restore desktop images, Windows files and application logins privately.
+- Derive disk UUIDs and EFI entry numbers on the target; see [boot setup](boot.md).
 
-| Input | Where/how to supply it |
-| --- | --- |
-| bren/root passwords | `passwd`; never copy shadow/gshadow |
-| Fingerprints | Enroll again with `fprintd-enroll bren`; test with `fprintd-verify bren` |
-| GitHub and SSH access | Authenticate gh; restore/generate private keys in `~/.ssh` with correct permissions |
-| Git identity | `git config --global user.name ...` / `user.email ...`, supplied locally |
-| Wi-Fi | Root-owned mode-0600 `home.conf`, `hotspot.conf`, `school.conf` under `/etc/wpa_supplicant` |
-| Enterprise Wi-Fi | Institution-supplied EAP method, identity, password, CA/client certificate/key and server-name validation policy |
-| Wallpaper | `~/Pictures/Screensaver/Screensaver` |
-| Lockscreen image | `~/Pictures/Lockscreen/Lockscreen.jpg` |
-| Windows VM | `~/VM/Windows/disk.qcow2` and its matching `OVMF_VARS.fd` from a cleanly shut-down VM backup |
-| RDP login | `WINPASS` environment variable or mode-0600 `~/.config/windows-rdp.env`; optional WINUSER |
-| Application/tool logins | Authenticate browsers, Steam/Prism, IPTV sources, development/cloud tools and streaming services normally |
-| SSH host keys | Generate new keys with `ssh-keygen -A`, or restore deliberately from a private backup if identity continuity is required |
-| Disk UUIDs/EFI number | Derive on the newly installed disk; render under ignored `local/boot` |
-
-Never commit Wi-Fi files, identity certificates, SSH/GPG material, tokens,
-`~/.config/gh/hosts.yml`, OBS stream/service settings,
-browser profiles, shell history, VM firmware state/images, application databases,
-game data, recordings, caches, logs or historical snapshots. Private-repository
-visibility is not a reason to store credentials. Git ignore rules are a convenience;
-an explicit allowlist and content review are the primary safeguards.
+Never commit credentials, SSIDs, institution names, identities, certificates,
+private keys, tokens, serials or this machine's UUIDs. Browser profiles, gh
+hosts.yml, stream settings, history, VM images/firmware, databases, recordings,
+logs and snapshots stay outside the public repository too.
 
 ## Wi-Fi profiles
-
-The captured service uses `/etc/wpa_supplicant/home.conf` initially. Create the
-directory, then create/edit each profile locally. Use the examples only as guides;
-do not overwrite an existing valid profile on a rerun:
+`brenos` enables the Framework Wi-Fi service but supplies no private profiles.
+Use `templates/wpa-personal.conf.example` for home.conf or hotspot.conf:
 
 ```sh
+cd ~/Projects/brenOS
 doas install -d -m755 /etc/wpa_supplicant
+doas install -m600 templates/wpa-personal.conf.example /etc/wpa_supplicant/home.conf
 doas vi /etc/wpa_supplicant/home.conf
-doas chown root:root /etc/wpa_supplicant/home.conf
-doas chmod 600 /etc/wpa_supplicant/home.conf
 ```
+Copy a template only when the destination is new; preserve working profiles.
+Keep profiles root-owned, mode 0600, and the directory 0755. The `net` helper
+uses doas to switch profiles. Choose the correct country code locally.
+Generate a PSK with `wpa_passphrase 'YOUR_SSID'`, entering the password on stdin.
+Remove its commented cleartext password; the generated PSK is also secret.
+For a hidden hotspot, add `scan_ssid=1`.
 
-Keep the directory traversable (0755) while the files stay private (0600). The
-existing unprivileged `net` helper checks whether a named profile exists before
-using doas; changing the directory to 0700 would break that check.
+Enterprise Wi-Fi starts with `templates/wpa-school.conf.example`. Its example
+uses PEAP/MSCHAPV2, WPA-EAP-SHA256 and required management-frame protection.
+Obtain the institution's EAP method, CA and server-name validation policy first;
+the template alone is incomplete. Supply SSID, identity and password privately.
+Store any certificates/keys locally. Restart the service or select a profile
+with `net` once it is ready.
 
-For WPA-Personal, see `templates/wpa-personal.conf.example`. A PSK can be generated
-locally using `wpa_passphrase 'YOUR_SSID'` with the passphrase supplied on stdin,
-not as a command-line argument. Its output includes a commented cleartext
-passphrase; remove that comment when saving. The generated PSK is still a secret.
-The service's control directory is root:wheel mode 0770. The authenticated
-reference profiles use `ctrl_interface=/run/wpa_supplicant`, `update_config=1`
-and `country=US`, with no explicit GROUP option. Retain the observed header;
-choose the correct country when installing in a different regulatory region.
-
-Create hotspot.conf from the personal template and add `scan_ssid=1`, matching
-the reference. Create school.conf using `templates/wpa-school.conf.example`:
-WPA-EAP-SHA256, required protected management frames (`ieee80211w=2`), EAP-PEAP
-and inner `auth=MSCHAPV2`. Supply the SSID, identity and password locally. These
-method options follow the [upstream configuration format](https://chromium.googlesource.com/external/w1.fi/cgit/hostap/+/refs/tags/hostap_2_5/wpa_supplicant/wpa_supplicant.conf).
-
-The reference school profile has no CA certificate or server-name validation
-directives. Institution-specific CA/trust and server-name settings must be
-obtained from the institution; none were available to capture. Certificates and
-private identities remain outside Git. The template records the observed
-authentication method without inventing institutional trust values.
-
-Only `home.conf` is a prerequisite for the service stage. The verifier also checks
-the presence/private permissions of hotspot and school, because the existing net
-helper exposes all three; the protected verifier also checks the non-secret
-settings in `manifests/wifi-methods.tsv`. If a profile is no longer used, record that deliberate
-scope change rather than copying stale credentials.
-
-## Desktop personal files
+## Vault and agents
+`brenos` does not clone Vault or add its bind mount. As the desktop user,
+authenticate GitHub, then clone your private Vault without replacing an existing one:
 
 ```sh
-mkdir -p ~/Pictures/Screenshots ~/Pictures/Screensaver ~/Pictures/Lockscreen ~/Videos/Recordings
+git lfs install
+gh repo clone Magneedo/vault ~/Vault
+cd ~/Vault
+git lfs pull
+```
+`codexclaude` expects `~/Vault/Agents`. `dwl-session` exports CLAUDE_CONFIG_DIR
+and CODEX_HOME to its `.claude` and `.codex` directories; add nothing to shell
+profiles. Restore credentials privately or log in normally. Settings alone do
+not restore memories, authentication or local skill links; follow your Vault rules.
+
+Create both directories as the desktop user. Preserve any files in the mount
+target before mounting over it:
+
+```sh
+mkdir -p ~/Vault/Agents/.codex/memories ~/Vault/Agents/Memory/Codex
 ```
 
-Restore the two image files from your personal backup. For a different image,
-update its path in the appropriate original dotfile/script and capture the change
-deliberately. Test `swaylock` with a missing/changed image before depending on the
-hibernate wrapper; do not assume an absent asset has no effect on locking.
+Add this to `/etc/fstab` with `doas vi /etc/fstab`; replace `bren` for another user.
+Use a bind mount, not a symlink:
 
-## Windows launcher
+```fstab
+/home/bren/Vault/Agents/.codex/memories /home/bren/Vault/Agents/Memory/Codex none bind,nofail 0 0
+```
+Run `doas findmnt --verify --verbose`, then `doas mount ~/Vault/Agents/Memory/Codex`.
+Confirm it with `findmnt --mountpoint ~/Vault/Agents/Memory/Codex`.
 
-The captured `windows` script runs an existing QEMU guest, exposes RDP only on
-127.0.0.1:3390, waits for RDP negotiation using its Python helper and launches
-FreeRDP through XWayland. It does not provision Windows. The default guest username
-is the existing configured name; override with WINUSER or a positional argument.
-Never put WINPASS on the command line. Create the private configuration with a
-local editor, based on `templates/windows-rdp.env.example`, and `chmod 600` it.
+## Desktop files and Windows
+Restore `~/Pictures/Screensaver/Screensaver` and
+`~/Pictures/Lockscreen/Lockscreen.jpg`; create your Pictures/Videos directories.
+Check `swaylock` before relying on hibernation.
 
-The helper's Framework defaults use CPUs 8–15, 6 GiB RAM and four virtual CPUs.
-Set `PIN_CPUS`, `RAM` and `SMP` locally if restoring elsewhere. `DISK`, `VM`,
-`OVMF_CODE`, `OVMF_VARS`, and `PORT` are also overridable. Only use a VM copy that
-was shut down cleanly, with its matching mutable OVMF variables. The launcher can
-initialize variables from the installed OVMF template when none exist, but that
-is not equivalent to restoring the guest's previous firmware state. Windows,
-Office, guest drivers, guest RDP enablement and licensing remain manual.
-
-The existing FreeRDP behavior uses localhost, NTLM and `/cert:ignore`; that scope
-is preserved for the local forwarded guest. No guest certificate or credential
-is copied. The launcher passes RDP arguments via stdin rather than putting its
-password in process arguments.
-
-## Persistent configuration not to infer from state
-
-The authenticated audit confirmed no cron spool/cron.d entries and no installed
-crontab command. Monthly Btrfs scrub is an explicit manual maintenance task in the existing
-dotfiles documentation, not a missing scheduler. No new scrub timer, balance,
-defragmentation, snapshot pruning or smartd daemon is installed here. Protected
-polkit/SSH policy is supplied by checked packages, with the recorded polkit
-directory permission restored separately. Future custom policy or scheduled
-entries are reported for review rather than assumed to be covered.
+Restore a shut-down `~/VM/Windows/disk.qcow2` with its matching `OVMF_VARS.fd`.
+Copy `templates/windows-rdp.env.example` to `~/.config/windows-rdp.env`, edit it
+locally and chmod it 600. Supply WINPASS there; never pass it on the command line.
+Adjust WINUSER, PIN_CPUS, RAM and SMP for your guest and hardware. Windows/Office
+licensing, drivers and RDP enablement are manual. Restore other app logins normally.

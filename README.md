@@ -1,191 +1,77 @@
-# Artix bootstrap
+# brenOS
 
-Restore the intentional configuration of bren's Artix/runit system from a clean
-Artix installation. The complete reference profile is **Framework Laptop 13,
-Intel i5-1240P**, x86_64, with `/home/bren` and UID 1000.
+bren's Artix Linux desktop in one script, in the spirit of
+[LARBS](https://larbs.xyz): install a bare Artix system, run `brenos` as root,
+answer a few questions, and get the dwl desktop with all its programs,
+configuration and services. Made for a Framework Laptop 13 (Intel), and
+usable without the Framework extras on other x86_64 machines.
 
-## Fresh Framework restore
+## Installation
 
-Start from a booted x86_64 Artix **runit** installation, using a local text console
-such as tty2. During OS installation, create `bren` with UID **1000**, primary
-group `bren`/GID **1000**, home `/home/bren`, shell `/bin/bash`, and wheel membership.
-Set bren's and root's passwords. If the account is absent or differs, follow the
-[account checks](docs/bootstrap.md#design-and-minimum-base); bootstrap never renames
-users or changes IDs. Choose the [reviewed disk/boot layout](docs/boot.md) during
-installation, with the existing FAT ESP mounted read-write at `/boot`.
+1. Install Artix Linux with **runit** from the Artix ISO. Partition, install the
+   base system and a bootloader, set the root password, and include `dhcpcd`
+   for the network. Don't create a user: brenos does. On the Framework, use
+   [the reference layout](docs/boot.md) while partitioning.
+2. Boot into the new system and log in as root.
+3. Connect to the Internet. Ethernet or USB tethering is easiest:
+   `ip -br link` shows the interface, then `dhcpcd -w <interface>`.
+4. Run:
 
-For the temporary network, use wired Ethernet or USB tethering. Include `dhcpcd`
-and the needed NIC firmware during the Artix install: base alone does not supply
-a DHCP client. If you already have Internet, skip the DHCP command below. If the
-fresh machine lacks networking tools, use live media to install them into the
-target first; bootstrap cannot download through an absent network.
+   ```sh
+   curl -LO https://raw.githubusercontent.com/Magneedo/brenOS/main/brenos
+   sh brenos
+   ```
 
-In the **fresh machine's root console**, check the clock, select the interface
-shown by `ip` (do not assume eth0), and install only the repository-access tools:
+5. Answer the questions: username (default `bren`), password, and whether this
+   is the Framework. Then it runs on its own; it takes a while.
+6. Do the [manual steps](#after-installing), then `reboot`. The user is logged
+   in on tty1 and dwl starts.
 
-```sh
-date -u
-ip -br link
-read -r -p 'Temporary wired/USB network interface: ' bootstrap_iface
-dhcpcd -w "$bootstrap_iface"
-findmnt --mountpoint /boot -o SOURCE,FSTYPE,OPTIONS
-# Continue only after the reviewed ESP is mounted as vfat,rw.
-# If /etc/fstab already names the correct ESP and it is unmounted: mount /boot
-pacman -Syu --needed git github-cli ca-certificates
-```
+## What it does
 
-Keep working Artix mirrors and signature checks. Correct a wrong clock before
-TLS/package operations. This full base upgrade can run kernel hooks, so `/boot`
-must be mounted **before** this first Pacman transaction too.
+- Adds the Arch repositories (`templates/pacman.conf`) and installs every
+  package in `manifests/`, plus the AUR ones through yay.
+- Creates the user in `wheel`, and clones this repo,
+  [dotfiles](https://github.com/Magneedo/dotfiles), [dwl](https://github.com/Magneedo/dwl)
+  and [dwlb](https://github.com/Magneedo/dwlb) into `~/Projects`.
+- Builds and installs dwl and dwlb.
+- Copies dotfiles' `home/` into the user's home and its `etc/` and `usr/` into
+  `/`, then does the same with `files/portable` (and `files/framework`).
+- Sets the groups, subordinate IDs, capabilities, dash as `sh`, the time zone
+  (America/New_York) and the locale, and enables the runit services.
 
-Log in as **bren on tty2**. Authenticate using gh's displayed browser/device code;
-you can complete it on another trusted device without installing a local browser:
+For a username other than `bren`, it builds and copies from a copy of the
+sources in which every `bren` becomes that name; the clones in `~/Projects`
+stay as they are. Running brenos again brings the system back in line with the
+repos, overwriting local edits to the files it copies.
 
-```sh
-umask 077
-gh auth login --hostname github.com --git-protocol https --web
-gh auth setup-git --hostname github.com
-mkdir -p ~/Projects
-gh repo clone Magneedo/artix-bootstrap ~/Projects/artix-bootstrap
-cd ~/Projects/artix-bootstrap
-./bootstrap
-```
+It never partitions, formats, changes the bootloader or reboots.
 
-`./bootstrap` defaults to Framework. It validates the base/account/checkout and
-ESP, offers to install only missing launcher prerequisites (Python, Git, doas,
-findmnt and CA trust), then invokes the existing installer as bren. Expect `su`
-to request the **root password** for prerequisite installation and, only when
-doas policy is absent, installation of the displayed **pinned final policy**.
-No temporary broad rule is created. Later doas prompts use bren's password.
+## After installing
 
-Minimal consoles may lack a credential store; gh can fall back to an unencrypted
-file under `~/.config/gh`, protected by the private umask above. Keep it out of
-Git/backups you share. [Authentication alternatives and security details](docs/bootstrap.md#obtaining-the-private-repository)
-cover SSH and non-persistent ordinary Git HTTPS. Never put a token in a command,
-URL, environment variable or repository file.
+These need private data or the hardware, so they stay manual:
 
-At an intentional gate/failure, use the printed resume command after completing
-the requested work. For example, after configuration and a fresh tty2 login:
+- Wi-Fi profiles in `/etc/wpa_supplicant`: [secrets](docs/secrets.md).
+- `gh auth login`, then clone the private Vault and log in to Codex and Claude:
+  [secrets](docs/secrets.md).
+- Framework: `fprintd-enroll`, and hibernation with the direct EFI boot entry:
+  [boot](docs/boot.md).
+- Pictures, the Windows VM and other personal files from backup:
+  [secrets](docs/secrets.md).
 
-```sh
-cd ~/Projects/artix-bootstrap
-./install --profile framework --from services
-# After completing boot/EFI work and rebooting deliberately:
-./install --profile framework --from verify
-```
+## Changing what gets installed
 
-`./bootstrap --dry-run` prints phase 0 without executing commands or writing files;
-`./bootstrap --from STAGE` rechecks prerequisites and resumes on a local console.
-Restore Wi-Fi credentials and other secrets manually at the existing services
-gate; stop/reconcile temporary networking before enabling the final services.
-Disk/UUID/EFI decisions, reboot and hardware tests remain manual. See
-[the full staged installation sequence](docs/install.md) for those reviews.
-
-A machine that already meets the prerequisites can still run directly:
-
-```sh
-./install --profile framework
-```
-
-The guided installer calls the existing stages, shows previews and pauses for
-policy/file review, private inputs, group activation and boot/EFI decisions.
-Use `./install --profile framework --dry-run` to print the whole plan without
-running commands. At a pause or failure it prints a command to resume with
-`--from STAGE`; no hidden completion files skip work automatically.
-
-Read [the reference audit](docs/audit.md) and [validation results](docs/validation.md)
-for coverage and test limits. The authenticated policy audit is complete;
-physical restore/boot tests have not been performed.
-
-This repository supplies manifests, selected missing files, small scripts and
-optional reviewed patches. The existing repositories remain the sources of truth:
-
-- [dotfiles](https://github.com/Magneedo/dotfiles): shell, desktop/session scripts,
-  application configuration and existing system overrides.
-- [dwl](https://github.com/Magneedo/dwl): compositor code and configuration.
-- [dwlb](https://github.com/Magneedo/dwlb): bar code and configuration.
-
-`manifests/repositories.tsv` pins their reviewed commits. `scripts/sources`
-prepares those commits plus any `patches/` in ignored `.work/` directories. It never
-changes the original checkouts. The additional Windows launcher/helper preserve
-the working live versions without resurrecting the deleted, older dotfiles copy.
-
-## What is reproduced
-
-The restore includes 128 explicit packages: 122 native packages and six AUR
-packages. Direct runtime/build dependencies are listed separately. Ten runit
-services, system policy,
-desktop builds, groups/capabilities, networking, audio startup and Framework boot
-configuration are covered. `manifests/files.tsv` is the complete deployment
-allowlist; no directory-wide home or `/etc` copy is used.
-
-The dwl build includes the persistent `Mod+c` Codex popup and its
-`/usr/local/libexec/dwl-codex` helper. `tmux` is an additional direct runtime
-dependency; `foot` and `openai-codex` are already included. Each graphical session
-starts a fresh chat, and hiding the popup keeps Codex working. Restore Codex
-authentication separately through its normal login flow.
-
-The pinned personal dwl `config.h` uses a centered `70` percent popup and 3px
-borders; `config.def.h` retains `100` percent defaults. Wheel input scrolls the dedicated
-tmux history. `Mod+Escape` opens `tofi-power`, which uses the existing tofi theme
-and util-linux's `flock` to keep the power menu single-instance. Bootstrap
-installs the script from dotfiles and does not install the dwl manpage.
-
-`Mod+.` opens the searchable `tofi-emoji` popup for emoji, characters and symbols.
-Enter inserts the selection into the previously focused application through
-`wtype` and also copies it to the clipboard. Escape cancels without inserting or
-changing the clipboard. Its configuration, offline character catalogue and Unicode license
-are restored from dotfiles. The catalogue contains only entries that render with
-the reference machine's installed fonts; regeneration is documented in dotfiles.
-Fontconfig prefers Noto families while retaining the installed fallback fonts
-for broader character coverage.
-
-Pacman and AUR stay rolling release. Package-version inventories record the audit
-baseline; they are not instructions to downgrade individual packages. Source
-configuration is pinned. Restoration may need explicit maintenance if repositories,
-ABIs, signing keys or upstream downloads change; missing packages fail visibly.
-There is no claim of identical binaries or an indefinitely frozen package archive.
-
-The `portable` profile contains this user's software and non-hardware policy.
-`framework` adds the Intel drivers, fingerprint PAM configuration, hardware
-workarounds, Wi-Fi service and boot/hibernate configuration. See
-[profile boundaries](docs/hardware.md). Portable does not mean arbitrary username:
-existing dwl commands use `/home/bren`. Adapt those sources deliberately for another
-account rather than relying on a hidden username substitution.
-
-## Repository map
-
-| Path | Purpose |
+| Path | What it holds |
 | --- | --- |
-| `bootstrap`, `scripts/phase0.py` | Minimal fresh-base checks, prerequisite/pinned-policy preparation and unprivileged handoff |
-| `install` | Interactive orchestration, read-only plan and explicit stage resume |
-| `manifests/` | Packages, services, groups, capabilities, directory permissions, Wi-Fi methods, pinned repositories, file allowlist |
-| `files/portable`, `files/framework` | Missing reviewed configuration and scripts |
-| `patches/` | Reviewed live/uncommitted differences from the pinned repositories |
-| `templates/` | Pacman configuration and secret-free examples |
-| `scripts/` | Independent restoration, inspection and verification stages |
-| `tests/rehearsal.py` | Temporary-root deployment and failure/retry tests |
-| `tests/installer.py` | Installer stop/resume, privilege boundaries and offline helper-bootstrap tests |
-| `tests/bootstrap.py` | Fresh-base, privilege, policy, retry and handoff tests without host changes |
-| `.work/`, `local/` | Ignored builds, rehearsals, local reports and machine inputs |
+| `brenos` | The installer |
+| `manifests/packages-*.txt` | Packages: `portable`, `framework`, `aur`, and `runtime` (installed as dependencies) |
+| `manifests/services-*.txt` | runit services to enable |
+| `manifests/groups.txt`, `capabilities.tsv`, `directories.tsv` | Groups, file capabilities, directory owners and modes |
+| `files/portable`, `files/framework` | System files that aren't in dotfiles, laid out like dotfiles |
+| `templates/` | `pacman.conf` and secret-free examples |
+| `docs/` | [Framework boot](docs/boot.md) and [private inputs](docs/secrets.md) |
 
-Individual mutating stage scripts preview by default and require `--apply` to write.
-The top-level `install` is interactive: it confirms installation intent, calls
-those previews and explicitly applies the reviewed stages. It has no unattended
-yes/force mode, and never supplies `--noconfirm` to package tools.
-`scripts/sources` and `scripts/desktop` only prepare/build inside `.work/`.
-`scripts/files` refuses conflicting files unless `--replace` is given; replaced
-files are backed up. No script formats disks, deletes snapshots, creates a VM,
-reboots, hibernates or registers an EFI entry.
-
-Passwords, Wi-Fi identities/credentials, keys, certificates, VPN accounts, browser
-profiles, application history, recordings, wallpapers, game data and VM images
-belong in a separate backup. See [manual inputs](docs/secrets.md). Never use
-`git add -f` on `local/` or `.work/`.
-
-To maintain this capture: edit the specific manifest/file, prepare sources and
-build the desktop, run `scripts/check`, `python3 tests/rehearsal.py`,
-`python3 tests/installer.py`, `python3 tests/bootstrap.py`, and the
-read-only `scripts/verify --profile framework`, then review and commit. Update a
-repository pin and its patch together. Once a patch is incorporated into its
-original repository, advance the pin and remove the redundant patch.
+Configuration lives in dotfiles, dwl and dwlb. brenos clones their `main`; on
+a rerun it fast-forwards the clones in `~/Projects`, and keeps a clone with
+local changes as it is. To add a package, add its name to a manifest. To test a
+change, run brenos on a fresh install, in a VM or in a chroot.

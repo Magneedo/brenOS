@@ -1,6 +1,8 @@
 # Installed as dependencies but directly needed by services, builds or scripts.
+adwaita-cursors
 archlinux-keyring
 artix-keyring
+bubblewrap
 chrony
 coreutils
 curl
@@ -29,7 +31,7 @@ rtkit
 runit-rc
 sed
 shadow
-tmux
+tesseract
 udev
 wayland
 xcb-util-wm

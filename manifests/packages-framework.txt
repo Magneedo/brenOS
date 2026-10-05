@@ -5,4 +5,5 @@ intel-ucode
 lib32-vulkan-intel
 linux-firmware-intel
 linux-firmware-realtek
+memtest86+-efi
 vulkan-intel
