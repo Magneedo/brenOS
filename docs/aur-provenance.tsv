@@ -1,7 +1,0 @@
-# package	installed-version	recipe-commit	status-at-audit
-brave-origin-bin	1:1.94.117-1	170c24c982fa63483fda46d37ffc645c68900ee2	AUR RPC available
-localsend	1.18.2-1	11788eb33c9298d611382884e8775fc34f874703	AUR RPC available
-open-tv-bin	1.9.1-1	not-cached	AUR RPC available
-smem	1.5-8	332b603d57a200623fc827cb681541b24d6c9694	AUR RPC available
-tofi	0.9.1-2	not-cached	AUR RPC available
-yay	13.0.1-1	cb43f84828ab4f9700f7c6f9c6d7a923d4cfaff0	AUR RPC available

@@ -4,5 +4,4 @@ chrony
 dbus
 dhcpcd
 nftables
-seatd
 udevd

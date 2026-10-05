@@ -25,7 +25,7 @@ SMP="${SMP:-4}"
 RDP_BIN="${RDP_BIN:-xfreerdp3}"
 RDP_LOG_LEVEL="${RDP_LOG_LEVEL:-ERROR}"
 RDP_TIMEOUT="${RDP_TIMEOUT:-180}"
-RDP_READY="$HOME/.local/libexec/windows-rdp-ready"
+RDP_READY="$HOME/.local/bin/windows-rdp-ready"
 CPUFLAGS="${CPUFLAGS:-host,kvm=on,hv_relaxed,hv_vapic,hv_time,hv_vpindex,hv_runtime,hv_synic,hv_stimer,hv_tlbflush,hv_frequencies,hv_reenlightenment,hv_ipi}"
 
 [ -n "${WINPASS:-}" ] || { echo "WINPASS must be set in env or ~/.config/windows-rdp.env" >&2; exit 2; }
