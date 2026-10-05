@@ -1,6 +1,7 @@
-# Six packages confirmed against AUR; see docs/packages.md.
+# AUR packages, built by yay. Prefer -bin packages to compiling.
 brave-origin-bin
-localsend
+claude-code
+localsend-bin
 open-tv-bin
 smem
 tofi
