@@ -33,6 +33,7 @@ fzf
 gammastep
 gcc
 git
+git-lfs
 github-cli
 grim
 inotify-tools
@@ -43,12 +44,14 @@ lf
 lib32-mesa
 lib32-vulkan-icd-loader
 libheif
+libnotify
 libtool
 libva-utils
 linux
 linux-firmware-whence
 m4
 make
+mako
 mesa-utils
 mpv
 nftables-runit
@@ -56,7 +59,9 @@ noto-fonts
 noto-fonts-cjk
 noto-fonts-emoji
 noto-fonts-extra
+npm
 obs-studio
+obsidian
 openai-codex
 openbsd-netcat
 opendoas
@@ -73,6 +78,7 @@ poppler
 prismlauncher
 python-click
 python-pip
+python-playwright
 qemu-base
 qemu-hw-display-virtio-gpu
 qemu-hw-display-virtio-gpu-pci
@@ -86,8 +92,11 @@ swaybg
 swayidle
 swayimg
 swaylock
+tesseract-data-eng
+tigervnc
 tk
 tllist
+tmux
 transmission-gtk
 ttf-noto-nerd
 unzip
@@ -97,6 +106,7 @@ vim
 vulkan-tools
 wayland-protocols
 wayland-utils
+wayvnc
 webp-pixbuf-loader
 wget
 which
@@ -104,6 +114,7 @@ wireless-regdb
 wireplumber
 wl-clipboard
 wlr-randr
+wlrctl
 wlroots0.18
 wlroots0.19
 wpa_supplicant
