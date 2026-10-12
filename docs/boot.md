@@ -1,6 +1,6 @@
 # Optional Framework boot setup
 
-Partitioning and the Artix runit base install are your job. `brenos` assumes
+Partitioning and the Artix runit base install are your job. `brenOS` assumes
 an already bootable system; it does not format disks, write fstab or register EFI.
 This guide recommends an unencrypted GPT layout and optional direct-kernel boot.
 
@@ -29,7 +29,7 @@ UUID=SWAP_UUID none swap defaults,pri=100 0 0
 ```
 
 Run `doas findmnt --verify --verbose`, mount `/boot` and `/.snapshots`, then
-`doas swapon -a`. `brenos` regenerates Booster when Framework extras are selected.
+`doas swapon -a`. `brenOS` regenerates Booster when Framework extras are selected.
 Keep `/boot` mounted for kernel upgrades. Check the files before changing EFI:
 
 ```sh
