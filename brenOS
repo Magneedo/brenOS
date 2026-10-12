@@ -1,14 +1,14 @@
 #!/bin/sh
 # brenOS: turn a fresh, booted Artix runit install into bren's desktop.
-# Run as root: sh brenos
+# Run as root: sh brenOS
 set -eu
 
 github=https://github.com/Magneedo
-die() { printf 'brenos: %s\n' "$*" >&2; exit 1; }
+die() { printf 'brenOS: %s\n' "$*" >&2; exit 1; }
 say() { printf '\n==> %s\n' "$*"; }
 lines() { cat "$@" | grep -v '^#' | grep . || true; }
 
-[ "$(id -u)" = 0 ] || die 'run as root: sh brenos'
+[ "$(id -u)" = 0 ] || die 'run as root: sh brenOS'
 grep -Eqx 'ID="?artix"?' /etc/os-release || die 'this is for Artix Linux'
 [ -d /etc/runit/sv ] || die 'this is for Artix with runit'
 
@@ -49,9 +49,9 @@ if ! id -u "$name" >/dev/null 2>&1; then
 fi
 unset pass again
 
-say 'Cloning brenOS, dotfiles, dwl and dwlb into ~/Projects'
+say 'Cloning brenOS, dotfiles, brendwl and brendwlb into ~/Projects'
 pacman -Syu --needed --noconfirm git
-for repo in brenOS dotfiles dwl dwlb; do
+for repo in brenOS dotfiles brendwl brendwlb; do
     if [ -d "$home/Projects/$repo" ]; then
         as_user git -C "$home/Projects/$repo" pull -q --ff-only ||
             echo "Keeping ~/Projects/$repo as it is; it has local changes."
@@ -86,7 +86,7 @@ trap 'install -m600 "$policy" /etc/doas.conf; rm -rf "$stage" "$policy"' EXIT
 trap 'exit 1' INT TERM HUP
 printf 'permit nopass %s\n' "$name" > /etc/doas.conf
 chmod 600 /etc/doas.conf
-for repo in dotfiles dwl dwlb; do as_user cp -r "$home/Projects/$repo" "$stage/"; done
+for repo in dotfiles brendwl brendwlb; do as_user cp -r "$home/Projects/$repo" "$stage/"; done
 as_user cp -r "$brenos/files" "$stage/"
 [ "$name" = bren ] || grep -rlIwZ --exclude-dir=.git bren "$stage" | as_user xargs -0r sed -i "s/\<bren\>/$name/g"
 
@@ -99,11 +99,11 @@ fi
 as_user yay -S --needed --noconfirm --sudo doas --answerdiff None --answerclean None $(lines packages-aur.txt)
 
 say 'Building dwl and dwlb'
-as_user make -C "$stage/dwl"
-as_user make -C "$stage/dwlb"
-make -C "$stage/dwl" install
-make -C "$stage/dwlb" install
-install -Dm644 "$stage/dwl/dwl.desktop" /usr/local/share/wayland-sessions/dwl.desktop
+as_user make -C "$stage/brendwl"
+as_user make -C "$stage/brendwlb"
+make -C "$stage/brendwl" install
+make -C "$stage/brendwlb" install
+install -Dm644 "$stage/brendwl/dwl.desktop" /usr/local/share/wayland-sessions/dwl.desktop
 
 say 'Copying configuration'
 deploy() { # home/ goes to the user's home, etc/ and usr/ to /

@@ -1,6 +1,6 @@
 # Manual inputs and private files
 
-Run `brenos` as root on the fresh, bootable Artix runit install. It asks for a
+Run `brenOS` as root on the fresh, bootable Artix runit install. It asks for a
 username (default `bren`) and sets a password for a new account. Supply the rest
 locally after installation. Keep an independent private backup.
 - Set the root password yourself; never copy shadow/gshadow into Git.
@@ -15,7 +15,7 @@ hosts.yml, stream settings, history, VM images/firmware, databases, recordings,
 logs and snapshots stay outside the public repository too.
 
 ## Wi-Fi profiles
-`brenos` enables the Framework Wi-Fi service but supplies no private profiles.
+`brenOS` enables the Framework Wi-Fi service but supplies no private profiles.
 Use `templates/wpa-personal.conf.example` for home.conf or hotspot.conf:
 
 ```sh
@@ -39,7 +39,7 @@ Store any certificates/keys locally. Restart the service or select a profile
 with `net` once it is ready.
 
 ## Vault and agents
-`brenos` does not clone Vault or add its bind mount. As the desktop user,
+`brenOS` does not clone Vault or add its bind mount. As the desktop user,
 authenticate GitHub, then clone your private Vault without replacing an existing one:
 
 ```sh
@@ -48,7 +48,7 @@ gh repo clone Magneedo/vault ~/Vault
 cd ~/Vault
 git lfs pull
 ```
-`codexclaude` expects `~/Vault/Agents`. `dwl-session` exports CLAUDE_CONFIG_DIR
+`brenbots` expects `~/Vault/Agents`. `dwl-session` exports CLAUDE_CONFIG_DIR
 and CODEX_HOME to its `.claude` and `.codex` directories; add nothing to shell
 profiles. Restore credentials privately or log in normally. Settings alone do
 not restore memories, authentication or local skill links; follow your Vault rules.
@@ -68,6 +68,22 @@ Use a bind mount, not a symlink:
 ```
 Run `doas findmnt --verify --verbose`, then `doas mount ~/Vault/Agents/Memory/Codex`.
 Confirm it with `findmnt --mountpoint ~/Vault/Agents/Memory/Codex`.
+
+Muse Code is optional: `brenbots` skips its window until `muse` is installed.
+Its state also lives in the Vault. Before the first run, link its config folder
+and bind-mount its data folder, which Muse rejects as a link:
+
+```sh
+mkdir -p ~/Vault/Agents/.muse/data ~/.config ~/.local/share/muse
+ln -s ~/Vault/Agents/.muse ~/.config/muse
+```
+
+```fstab
+/home/bren/Vault/Agents/.muse/data /home/bren/.local/share/muse none bind,nofail 0 0
+```
+Run `doas mount ~/.local/share/muse`, then install it with
+`curl -fsSL https://dev.meta.ai/install.sh | MUSE_NO_MODIFY_PATH=1 bash`.
+Sign in from its window (Mod+c, then Alt+Tab); brenbots keeps contributor mode off.
 
 ## Desktop files and Windows
 Restore `~/Pictures/Screensaver/Screensaver` and
