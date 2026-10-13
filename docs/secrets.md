@@ -69,7 +69,7 @@ Use a bind mount, not a symlink:
 Run `doas findmnt --verify --verbose`, then `doas mount ~/Vault/Agents/Memory/Codex`.
 Confirm it with `findmnt --mountpoint ~/Vault/Agents/Memory/Codex`.
 
-Muse Code is optional: `brenbots` skips its window until `muse` is installed.
+Muse Code is optional: `brenbots` skips its window until it is installed.
 Its state also lives in the Vault. Before the first run, link its config folder
 and bind-mount its data folder, which Muse rejects as a link:
 
@@ -81,8 +81,12 @@ ln -s ~/Vault/Agents/.muse ~/.config/muse
 ```fstab
 /home/bren/Vault/Agents/.muse/data /home/bren/.local/share/muse none bind,nofail 0 0
 ```
-Run `doas mount ~/.local/share/muse`, then install it with
-`curl -fsSL https://dev.meta.ai/install.sh | MUSE_NO_MODIFY_PATH=1 bash`.
+Run `doas mount ~/.local/share/muse`, then install it into the Vault too:
+
+```sh
+curl -fsSL https://dev.meta.ai/install.sh |
+    MUSE_INSTALL_DIR="$HOME/Vault/Agents/.muse/bin" MUSE_NO_MODIFY_PATH=1 bash
+```
 Sign in from its window (Mod+c, then Alt+Tab); brenbots keeps contributor mode off.
 
 ## Desktop files and Windows
