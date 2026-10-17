@@ -26,6 +26,7 @@ UUID=ROOT_UUID / btrfs subvol=@,noatime,compress=zstd:3 0 0
 UUID=ROOT_UUID /.snapshots btrfs subvol=@snapshots,noatime,compress=zstd:3 0 0
 UUID=ESP_UUID /boot vfat defaults 0 2
 UUID=SWAP_UUID none swap defaults,pri=100 0 0
+tmpfs /tmp tmpfs rw,nosuid,nodev,mode=1777,size=50%,nr_inodes=1m 0 0
 ```
 
 Run `doas findmnt --verify --verbose`, mount `/boot` and `/.snapshots`, then
