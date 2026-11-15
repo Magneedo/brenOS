@@ -76,3 +76,11 @@ Configuration lives in dotfiles, brendwl and brendwlb. brenOS clones their `main
 a rerun it fast-forwards the clones in `~/Projects`, and keeps a clone with
 local changes as it is. To add a package, add its name to a manifest. To test a
 change, run brenOS on a fresh install, in a VM or in a chroot.
+
+## License
+
+MIT for bren's own files: see [LICENSE](LICENSE).
+`files/portable/etc/dhcpcd.conf` is dhcpcd's sample file with small edits and
+stays under dhcpcd's license: [LICENSE.dhcpcd](LICENSE.dhcpcd). dwl and dwlb keep their own licenses in
+[brendwl](https://github.com/Magneedo/brendwl) and
+[brendwlb](https://github.com/Magneedo/brendwlb).
