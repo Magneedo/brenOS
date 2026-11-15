@@ -105,6 +105,7 @@ unzip
 usbutils
 util-linux
 vim
+vncdotool
 vulkan-tools
 wayland-protocols
 wayland-utils
