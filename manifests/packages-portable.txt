@@ -92,6 +92,8 @@ swaybg
 swayidle
 swayimg
 swaylock
+tailscale
+tailscale-runit
 tesseract-data-eng
 tigervnc
 tk
@@ -113,10 +115,9 @@ which
 wireless-regdb
 wireplumber
 wl-clipboard
+wlopm
 wlr-randr
 wlrctl
-wlroots0.18
-wlroots0.19
 wpa_supplicant
 wpa_supplicant-runit
 wtype

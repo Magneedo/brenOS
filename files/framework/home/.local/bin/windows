@@ -18,6 +18,7 @@ PID="${PID:-$VM/qemu.pid}"
 WINUSER="${1:-${WINUSER:-Brendyn}}"
 WINPASS="${WINPASS:-}"
 PORT="${PORT:-3390}"
+SSH_PORT="${SSH_PORT:-2222}"
 PIN_CPUS="${PIN_CPUS:-8-15}"
 # Coursework/Office defaults; keep Linux responsive on this hybrid CPU.
 RAM="${RAM:-6G}"
@@ -35,8 +36,10 @@ for command in qemu-system-x86_64 taskset flock python3 "$RDP_BIN"; do
   command -v "$command" >/dev/null 2>&1 || { echo "$command not found" >&2; exit 127; }
 done
 [ -x "$RDP_READY" ] || { echo "Missing RDP readiness helper: $RDP_READY" >&2; exit 127; }
-case "$PORT" in ''|*[!0-9]*) echo "PORT must be a number from 1 to 65535" >&2; exit 2 ;; esac
-[ "$PORT" -ge 1 ] 2>/dev/null && [ "$PORT" -le 65535 ] 2>/dev/null || { echo "PORT must be a number from 1 to 65535" >&2; exit 2; }
+for port in "$PORT" "$SSH_PORT"; do
+  case "$port" in ''|*[!0-9]*) echo "PORT and SSH_PORT must be numbers from 1 to 65535" >&2; exit 2 ;; esac
+  [ "$port" -ge 1 ] 2>/dev/null && [ "$port" -le 65535 ] 2>/dev/null || { echo "PORT and SSH_PORT must be numbers from 1 to 65535" >&2; exit 2; }
+done
 case "$RDP_TIMEOUT" in ''|*[!0-9]*) echo "RDP_TIMEOUT must be positive seconds" >&2; exit 2 ;; esac
 [ "$RDP_TIMEOUT" -gt 0 ] 2>/dev/null || { echo "RDP_TIMEOUT must be positive seconds" >&2; exit 2; }
 
@@ -125,14 +128,14 @@ PY
     -rtc base=localtime \
     -display none \
     -vga none \
-    -device virtio-gpu-pci \
     -global kvm-pit.lost_tick_policy=discard \
     -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
     -drive if=pflash,format=raw,file="$OVMF_VARS" \
     -drive if=none,id=vdisk,file="$DISK",format=qcow2,cache=writeback,discard=unmap,aio=io_uring \
-    -device virtio-blk-pci,drive=vdisk \
-    -netdev user,id=n1,hostfwd=tcp:127.0.0.1:${PORT}-:3389 \
-    -device e1000e,netdev=n1 \
+    -object iothread,id=io0 \
+    -device virtio-blk-pci,drive=vdisk,iothread=io0 \
+    -netdev user,id=n1,hostfwd=tcp:127.0.0.1:${PORT}-:3389,hostfwd=tcp:127.0.0.1:${SSH_PORT}-:22 \
+    -device virtio-net-pci,netdev=n1 \
     -qmp unix:"$QMP",server,nowait \
     -pidfile "$PID" \
     -daemonize 9>&-

@@ -2,7 +2,8 @@
 brave-origin-bin
 claude-code
 localsend-bin
-open-tv-bin
 smem
+t3code-bin
 tofi
+wlroots0.19
 yay

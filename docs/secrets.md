@@ -69,6 +69,17 @@ Use a bind mount, not a symlink:
 Run `doas findmnt --verify --verbose`, then `doas mount ~/Vault/Agents/Memory/Codex`.
 Confirm it with `findmnt --mountpoint ~/Vault/Agents/Memory/Codex`.
 
+## Phone access
+`brenOS` installs Tailscale and starts its service logged out, so nothing is
+reachable yet. To reach the machine from the phone, join your tailnet with
+Tailscale's SSH server (sshd stays off and the firewall stays closed):
+
+```sh
+doas tailscale up --ssh --operator="$USER" --login-server https://YOUR_HEADSCALE
+```
+Then register the node on the control server as its page says. Leave out
+`--login-server` to use Tailscale's own service.
+
 ## Desktop files and Windows
 Restore `~/Pictures/Screensaver/Screensaver` and
 `~/Pictures/Lockscreen/Lockscreen.jpg`; create your Pictures/Videos directories.
@@ -79,3 +90,6 @@ Copy `templates/windows-rdp.env.example` to `~/.config/windows-rdp.env`, edit it
 locally and chmod it 600. Supply WINPASS there; never pass it on the command line.
 Adjust WINUSER, PIN_CPUS, RAM and SMP for your guest and hardware. Windows/Office
 licensing, drivers and RDP enablement are manual. Restore other app logins normally.
+
+The `tv` command reads its provider login from brenTV, which `brenOS` does not
+install: install brenTV and add a source in it first.

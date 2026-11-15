@@ -26,8 +26,8 @@ else
     trap 'stty echo' EXIT
     trap 'exit 1' INT TERM HUP
     stty -echo
-    printf 'Password for %s: ' "$name"; read -r pass
-    printf '\nAgain: '; read -r again
+    printf 'Password for %s: ' "$name"; IFS= read -r pass
+    printf '\nAgain: '; IFS= read -r again
     stty echo
     echo
     [ -n "$pass" ] && [ "$pass" = "$again" ] || die 'the passwords are empty or differ'
@@ -145,6 +145,7 @@ cat <<EOF
 brenOS is installed for $name. Still to do by hand (see the README):
 - Wi-Fi profiles in /etc/wpa_supplicant (docs/secrets.md)
 - Clone ~/Vault, then log in to GitHub, Codex and Claude (docs/secrets.md)
+- Phone access: tailscale up (docs/secrets.md)
 - Framework: enroll a fingerprint (fprintd-enroll), set up hibernation (docs/boot.md)
 Then reboot. $name is logged in on tty1 and the desktop starts.
 EOF

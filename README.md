@@ -54,6 +54,7 @@ These need private data or the hardware, so they stay manual:
 - Wi-Fi profiles in `/etc/wpa_supplicant`: [secrets](docs/secrets.md).
 - `gh auth login`, then clone the private Vault and log in to Codex and Claude:
   [secrets](docs/secrets.md).
+- Phone access: join the tailnet with `tailscale up`: [secrets](docs/secrets.md).
 - Framework: `fprintd-enroll`, and hibernation with the direct EFI boot entry:
   [boot](docs/boot.md).
 - Pictures, the Windows VM and other personal files from backup:
