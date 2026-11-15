@@ -5,5 +5,4 @@ localsend-bin
 smem
 t3code-bin
 tofi
-wlroots0.19
 yay
