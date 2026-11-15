@@ -119,6 +119,7 @@ wl-clipboard
 wlopm
 wlr-randr
 wlrctl
+wlroots0.20
 wpa_supplicant
 wpa_supplicant-runit
 wtype
